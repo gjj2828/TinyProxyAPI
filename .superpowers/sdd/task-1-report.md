@@ -1,32 +1,38 @@
-# Task 1 Report: 项目初始化
+# Task 1 Report: ConfigLoader 支持 AllowedKeys
 
 ## Status: DONE
 
-## Implementation Summary
-
-按照任务要求完成了项目基础结构的创建：
-
-1. **go.mod**: 使用 `go mod init github.com/user/TinyProxyAPI` 创建，Go 版本 1.26.5
-2. **config.toml.example**: 创建了符合 TOML 格式的配置文件示例，包含 server、default、platforms、models 四个 section
-3. **Git 仓库**: 已初始化并提交，commit SHA: `b281311`
-
-## Verification Results
-
-| 验收标准 | 状态 |
-|---------|------|
-| go.mod 文件存在且 module name 正确 | PASS |
-| config.toml.example 文件存在且格式正确 | PASS |
-| git 仓库已初始化 | PASS |
-| 提交已创建 | PASS |
-
 ## Commit
 
-```
-b281311 feat: initialize project structure
+- **SHA:** b4bea33
+- **Subject:** feat: add AllowedKeys field to Config
+
+## Changes
+
+Added `AllowedKeys []string` field to the `Config` struct in `config/loader.go`:
+
+```go
+type Config struct {
+	Server     ServerConfig
+	Default    DefaultConfig
+	AllowedKeys []string
+	Platforms  map[string]Platform
+	Models     map[string]string
+}
 ```
 
-## Notes
+## Test Results
 
-- 所有文件均符合 Global Constraints 要求
-- 配置示例覆盖了 OpenAI 和 Anthropic 两个平台的配置
-- 监听地址设置为 `:3178`，端点为 `POST /v1/responses`
+```
+=== RUN   TestLoadConfig
+--- PASS: TestLoadConfig (0.00s)
+PASS
+ok  	github.com/user/TinyProxyAPI/config	0.691s
+```
+
+All existing tests pass.
+
+## Self-Review
+
+- [x] Added `AllowedKeys []string` to Config struct as specified
+- [x] Existing tests still pass

@@ -1,40 +1,22 @@
-# Task 2: ConfigLoader 实现报告
+# Task 2 Report: Matcher 添加 GetAllowedKeys 方法
 
-## Status
+## Status: DONE
 
-**Status:** DONE
+## Commit
+- SHA: `2c27bd8`
+- Subject: `feat: add GetAllowedKeys method to Matcher`
 
-## Implementation Summary
-
-### 1. 依赖获取
-- 执行 `go get github.com/pelletier/go-toml/v2` 获取 TOML 解析库
-
-### 2. 测试编写 (TDD)
-- 创建 `config/loader_test.go`
-- 测试验证 LoadConfig 能正确解析 TOML 配置文件
-
-### 3. 实现 LoadConfig
-- 创建 `config/loader.go`
-- 定义 Config、ServerConfig、DefaultConfig、Platform 数据结构
-- **关键修复:** Platform 结构体字段添加 `toml:"base_url"` 和 `toml:"api_key"` tag，因为 TOML 文件使用 snake_case 命名而 Go 使用 CamelCase
-
-### 4. 提交
-- Commit: `27c0b6f` - "feat: add ConfigLoader with TOML support"
-
-## Files Changed
-- config/loader.go (新增)
-- config/loader_test.go (新增)
+## Changes
+- **Modified**: `matcher/matcher.go`
+- Added `GetAllowedKeys() []string` method to the `Matcher` struct that returns `m.cfg.AllowedKeys`
 
 ## Test Results
 ```
-=== RUN   TestLoadConfig
---- PASS: TestLoadConfig (0.00s)
+=== RUN   TestMatcher_Match
+--- PASS: TestMatcher_Match (0.00s)
 PASS
-ok  	github.com/user/TinyProxyAPI/config	0.719s
+ok      github.com/user/TinyProxyAPI/matcher   0.690s
 ```
 
-## 验收标准达成
-- [x] config/loader.go 存在，包含 Config、Platform 等数据结构
-- [x] LoadConfig 函数正确解析 TOML 文件
-- [x] config/loader_test.go 测试通过
-- [x] 提交已创建
+## Summary
+Task 2 completed successfully. The `GetAllowedKeys` method was added to the Matcher struct, which delegates to `cfg.AllowedKeys`. All existing tests pass.

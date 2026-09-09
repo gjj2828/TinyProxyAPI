@@ -1,48 +1,58 @@
-# Task 4 Report: ProxyHandler 实现
+# Task 4 Report: 单元测试更新
 
-## Status
+## Status: DONE
 
-DONE
+## Commit
 
-## Implementation Summary
+- **SHA**: fcad3ef5e20c9e75fdcaea8645a5d43798bf9abd
+- **Subject**: test: add tests for API key whitelist feature
 
-实现了 `ProxyHandler`，使用 `httputil.ReverseProxy` 将请求透传到目标平台。
+## Test Results Summary
 
-### handler/proxy.go
-- `ProxyHandler` 结构体包含 `*matcher.Matcher`
-- `NewProxyHandler` 构造函数
-- `ServeHTTP` 方法：
-  - 仅处理 `POST /v1/responses`，其他路径返回 404
-  - 解析 JSON body 获取 `model` 字段
-  - body 解析失败返回 400
-  - model 未匹配返回 404
-  - 使用 `httputil.NewSingleHostReverseProxy` 透传请求到目标平台
-  - 自定义 Director 设置 Host 头和 Authorization
-
-### handler/proxy_test.go
-- 测试 404（未知 model）
-- 测试 400（无效 JSON body）
-
-## Files Changed
-
-- handler/proxy.go（新建）
-- handler/proxy_test.go（新建）
-
-## Test Results
+All tests pass:
 
 ```
+=== RUN   TestLoadConfig
+--- PASS: TestLoadConfig (0.01s)
+PASS
+
 === RUN   TestProxyHandler_ServeHTTP
 --- PASS: TestProxyHandler_ServeHTTP (0.00s)
 PASS
-ok  	github.com/user/TinyProxyAPI/handler 1.354s
+
+=== RUN   TestMatcher_Match
+--- PASS: TestMatcher_Match (0.00s)
+=== RUN   TestMatcher_GetAllowedKeys
+--- PASS: TestMatcher_GetAllowedKeys (0.00s)
+PASS
+
+=== RUN   TestWatch
+--- PASS: TestWatch (0.10s)
+PASS
 ```
 
-## Self-Review Findings
+## Changes Made
 
-1. Matcher.Match 对于不存在的 model 会 fallback 到 Default.Platform（如果非空）
-2. 测试中使用 `Default.Platform = ""` 确保未知 model 返回 404
-3. 实现与 brief 中的接口完全一致
+### 1. config/loader_test.go
+- Added `allowed_keys` to test TOML content (must be declared before `[section]` blocks)
+- Added assertion for `AllowedKeys` parsing (3 keys expected)
 
-## Concerns
+### 2. matcher/matcher_test.go
+- Added `TestMatcher_GetAllowedKeys` function to test `GetAllowedKeys()` method
 
-无
+### 3. handler/proxy_test.go
+- Updated config to include `AllowedKeys` for auth testing
+- Added test for 401 when Authorization header is missing
+- Added test for 401 when API key is invalid
+
+### 4. config.toml.example
+- Added `allowed_keys = ["your-key-here"]` section
+
+### 5. config/loader.go (bug fix)
+- Added `toml:"allowed_keys"` struct tag for correct field mapping
+
+## Key Finding
+
+go-toml/v2 requires:
+1. Top-level values must be declared BEFORE any `[section]` blocks
+2. Explicit `toml` struct tag for snake_case to PascalCase field mapping

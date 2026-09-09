@@ -1,61 +1,35 @@
-# Task 1: 项目初始化
+### Task 1: ConfigLoader 支持 AllowedKeys
 
-## 概述
+**Files:**
+- Modify: `config/loader.go:10-15`
+- Test: `config/loader_test.go`
 
-创建项目基础结构：go.mod 和 config.toml.example
+**Interfaces:**
+- Produces: `Config.AllowedKeys []string`
 
-## Global Constraints（必须遵守）
+- [ ] **Step 1: 修改 Config 结构体，添加 AllowedKeys 字段**
 
-- Go 1.21+
-- 监听地址：`:3178`
-- 端点：`POST /v1/responses`
-- 配置文件：`config.toml`（TOML 格式）
-- 热重载：SIGHUP 信号
-- 模型匹配：全量匹配
+```go
+type Config struct {
+    Server     ServerConfig
+    Default    DefaultConfig
+    AllowedKeys []string      // 新增
+    Platforms  map[string]Platform
+    Models     map[string]string
+}
+```
 
-## 工作目录
+- [ ] **Step 2: 运行现有测试，确认不影响现有功能**
 
-`D:/Documents/Projects/TinyProxyAPI`
+Run: `go test ./config/... -v`
+Expected: PASS
 
-## 具体任务
-
-### Step 1: 创建 go.mod
+- [ ] **Step 3: 提交**
 
 ```bash
-go mod init github.com/user/TinyProxyAPI
+git add config/loader.go
+git commit -m "feat: add AllowedKeys field to Config"
 ```
 
-### Step 2: 创建 config.toml.example
+---
 
-```toml
-# config.toml.example
-[server]
-addr = ":3178"
-
-[default]
-platform = "openai"
-
-[platforms]
-"openai" = { base_url = "https://api.openai.com", api_key = "sk-your-openai-key" }
-"anthropic" = { base_url = "https://api.anthropic.com", api_key = "sk-ant-your-anthropic-key" }
-
-[models]
-"gpt-4o" = "openai"
-"gpt-4o-mini" = "openai"
-"claude-sonnet-4-20250514" = "anthropic"
-```
-
-### Step 3: 提交
-
-```bash
-git init
-git add go.mod config.toml.example
-git commit -m "feat: initialize project structure"
-```
-
-## 验收标准
-
-1. go.mod 文件存在且 module name 正确
-2. config.toml.example 文件存在且格式正确
-3. git 仓库已初始化
-4. 提交已创建

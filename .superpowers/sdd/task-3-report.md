@@ -1,44 +1,40 @@
-# Task 3 Report: Matcher 实现
+# Task 3 Report: ProxyHandler 添加 API Key 验证
 
-## Status
+## 概述
 
-**DONE**
+在 `ProxyHandler.ServeHTTP` 中添加 API Key 白名单验证逻辑。
 
-## Implementation Summary
+## 修改内容
 
-已通过 TDD 方式完成 Matcher 模块实现。Match 方法实现两级查找逻辑：
-1. 优先在 Models map 中全量匹配模型名
-2. 未找到时 fallback 到 Default.Platform
-3. 根据 platformID 查找 Platforms map 返回平台配置
+**文件:** `handler/proxy.go`
 
-## Files Changed
+在平台匹配之后、ReverseProxy 之前添加了 API Key 验证：
 
-| 文件 | 操作 |
-|------|------|
-| matcher/matcher.go | 新增 |
-| matcher/matcher_test.go | 新增 |
-| go.mod | 修改 (添加 replace 指令) |
+1. 读取 `Authorization` 请求头
+2. 若缺失，返回 401 `missing authorization header`
+3. 提取 `Bearer <key>` 中的 key，检查是否在 `h.matcher.GetAllowedKeys()` 白名单中
+4. 若不匹配，返回 401 `invalid api key`
 
-## Test Results
+## 提交信息
+
+- **Commit SHA:** 88f9c3eb41d9ac7b2946c7b7929620295357bd58
+- **Subject:** feat: add API key whitelist validation in ProxyHandler
+
+## 测试结果
 
 ```
-=== RUN   TestMatcher_Match
---- PASS: TestMatcher_Match (0.00s)
+=== RUN   TestProxyHandler_ServeHTTP
+--- PASS: TestProxyHandler_ServeHTTP (0.00s)
 PASS
-ok  	github.com/user/TinyProxyAPI/matcher	0.671s
+ok  	github.com/user/TinyProxyAPI/handler	1.189s
 ```
 
-测试覆盖：
-- 全量模型名匹配 (gpt-4o -> openai)
-- 未知模型 fallback 到 default platform
+所有测试通过。
 
-## Self-Review Findings
+## 验收标准
 
-1. Matcher 结构与 brief 提供的结构一致
-2. Match 方法签名与要求一致
-3. 测试覆盖了主要场景
-4. go.mod replace 指令已配置
-
-## Concerns
-
-无
+- [x] `handler/proxy.go` 中 ServeHTTP 方法包含 API Key 验证逻辑
+- [x] 缺失 Authorization header 返回 401
+- [x] 无效 API Key 返回 401
+- [x] 测试通过
+- [x] 提交已创建
