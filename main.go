@@ -12,9 +12,8 @@ import (
 )
 
 func main() {
-	flag.Parse()
-
 	configPath := flag.String("config", "config.toml", "path to config file")
+	flag.Parse()
 
 	cfg, err := config.LoadConfig(*configPath)
 	if err != nil {
