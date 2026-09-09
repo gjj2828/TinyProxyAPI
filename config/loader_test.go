@@ -8,6 +8,8 @@ import (
 
 func TestLoadConfig(t *testing.T) {
 	content := `
+allowed_keys = ["key-001", "key-002", "key-003"]
+
 [server]
 addr = ":3178"
 
@@ -47,5 +49,11 @@ platform = "openai"
 	}
 	if cfg.Models["gpt-4o"] != "openai" {
 		t.Errorf("expected gpt-4o -> openai, got %s", cfg.Models["gpt-4o"])
+	}
+	if len(cfg.AllowedKeys) != 3 {
+		t.Errorf("expected 3 allowed keys, got %d", len(cfg.AllowedKeys))
+	}
+	if cfg.AllowedKeys[0] != "key-001" {
+		t.Errorf("expected first allowed key key-001, got %s", cfg.AllowedKeys[0])
 	}
 }
