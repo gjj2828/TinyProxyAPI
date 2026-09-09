@@ -2,7 +2,9 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -25,11 +27,24 @@ func (h *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 读取 body 一次，后面需要复用
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": map[string]string{
+				"message": "failed to read request body",
+				"type":    "invalid_request_error",
+			},
+		})
+		return
+	}
+
 	// 解析 body 获取 model
 	var reqBody struct {
 		Model string `json:"model"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+	if err := json.Unmarshal(bodyBytes, &reqBody); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": map[string]string{
@@ -39,6 +54,9 @@ func (h *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	// 恢复 body 给后续 ReverseProxy 使用
+	r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 
 	// 匹配平台
 	platform, ok := h.matcher.Match(reqBody.Model)
