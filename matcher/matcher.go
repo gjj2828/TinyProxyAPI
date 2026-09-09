@@ -21,3 +21,8 @@ func (m *Matcher) Match(model string) (*config.Platform, bool) {
 	platform, ok := m.cfg.Platforms[platformID]
 	return &platform, ok
 }
+
+// GetAllowedKeys 返回全局 API Key 白名单
+func (m *Matcher) GetAllowedKeys() []string {
+	return m.cfg.AllowedKeys
+}
