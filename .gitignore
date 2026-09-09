@@ -1,0 +1,15 @@
+# 配置文件（包含 API key）
+config.toml
+
+# 构建产物
+TinyProxyAPI
+TinyProxyAPI.exe
+*.exe
+
+# Go 工作目录
+*.test
+*.out
+
+# IDE
+.idea/
+.vscode/
