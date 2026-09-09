@@ -1,0 +1,15 @@
+# config.toml.example
+[server]
+addr = ":3178"
+
+[default]
+platform = "openai"
+
+[platforms]
+"openai" = { base_url = "https://api.openai.com", api_key = "sk-your-openai-key" }
+"anthropic" = { base_url = "https://api.anthropic.com", api_key = "sk-ant-your-anthropic-key" }
+
+[models]
+"gpt-4o" = "openai"
+"gpt-4o-mini" = "openai"
+"claude-sonnet-4-20250514" = "anthropic"
