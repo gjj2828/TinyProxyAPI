@@ -8,10 +8,11 @@ import (
 )
 
 type Config struct {
-	Server    ServerConfig
-	Default   DefaultConfig
-	Platforms map[string]Platform
-	Models    map[string]string
+	Server     ServerConfig
+	Default    DefaultConfig
+	AllowedKeys []string
+	Platforms  map[string]Platform
+	Models     map[string]string
 }
 
 type ServerConfig struct {
