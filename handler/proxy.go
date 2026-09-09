@@ -71,6 +71,41 @@ func (h *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// API Key 验证
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": map[string]string{
+				"message": "missing authorization header",
+				"type":    "invalid_request_error",
+			},
+		})
+		return
+	}
+	// 检查 Bearer <key> 是否在白名单中
+	authKey := ""
+	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		authKey = authHeader[7:]
+	}
+	valid := false
+	for _, key := range h.matcher.GetAllowedKeys() {
+		if key == authKey {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": map[string]string{
+				"message": "invalid api key",
+				"type":    "invalid_request_error",
+			},
+		})
+		return
+	}
+
 	// 构建目标 URL
 	target, _ := url.Parse(platform.BaseURL)
 	target.Path = "/v1/responses"
