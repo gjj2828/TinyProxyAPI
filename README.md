@@ -34,9 +34,11 @@ platform = "openai"
 ### 运行
 
 ```bash
-go build -o TinyProxyAPI .
-./TinyProxyAPI -config config.toml
+go build -o TinyProxyAPI.exe .
+./TinyProxyAPI.exe -config config.toml
 ```
+
+> Windows 上 `go build -o name .` 不会自动补 `.exe` 后缀，必须显式指定。
 
 ### 请求示例
 
