@@ -16,6 +16,7 @@ import (
 	"github.com/user/TinyProxyAPI/tray"
 
 	"github.com/lxn/walk"
+	"github.com/lxn/win"
 )
 
 var (
@@ -43,14 +44,22 @@ func toggleLogWindow() {
 }
 
 // activateLogWindow 将日志窗口显示并激活到前台。
-// 日志窗口隐藏时调用 Show()；已显示时调用 Activate() 置于前台。
+// 日志窗口隐藏时调用 Show()；已显示时通过 win32 API 还原最小化、提到最前。
 // 菜单勾选框由调用方同步。
 func activateLogWindow() {
 	if !logWin.IsVisible() {
 		logWin.Show()
 		tr.SyncMenuState(true, st.ShowLogOnStartup)
-	} else {
-		logWin.Activate()
+		return
+	}
+
+	// 已显示（未最小化）→ 直接强制前台。
+	// walk.Activate 只走 SetActiveWindow，从托盘回调上下文触发时
+	// SetForegroundWindow 才能保证把窗口提到 Z-order 最前；
+	// BringWindowToTop 进一步防止 Z-order 顺序问题。
+	if hwnd := win.HWND(logWin.Handle()); hwnd != 0 {
+		win.SetForegroundWindow(hwnd)
+		win.BringWindowToTop(hwnd)
 	}
 }
 
