@@ -1,40 +1,25 @@
-# Task 3 Report: ProxyHandler 添加 API Key 验证
+# Task 3 Report: 创建托盘管理（tray/tray.go）
 
-## 概述
+## Status: DONE
 
-在 `ProxyHandler.ServeHTTP` 中添加 API Key 白名单验证逻辑。
+## Commits
+- `41c9033` - feat: add tray management module
 
-## 修改内容
+## 实现说明
 
-**文件:** `handler/proxy.go`
+按照 brief 要求创建了 `tray/tray.go`，但根据实际 walk 库 API 做了以下调整：
 
-在平台匹配之后、ReverseProxy 之前添加了 API Key 验证：
+1. **NotifyIcon 需要 Form 作为宿主**：walk 的 `NewNotifyIcon(form Form)` 需要一个实现了 `walk.Form` 接口的类型。`walk.Application` 不实现 `Form` 接口，因此创建了一个隐藏的 `walk.MainWindow` 作为宿主。
 
-1. 读取 `Authorization` 请求头
-2. 若缺失，返回 401 `missing authorization header`
-3. 提取 `Bearer <key>` 中的 key，检查是否在 `h.matcher.GetAllowedKeys()` 白名单中
-4. 若不匹配，返回 401 `invalid api key`
+2. **没有 DoubleClicked 事件**：walk 的 NotifyIcon 没有 `DoubleClicked()` 方法，改用 `MouseDown()` 事件自己实现双击检测（300ms 内两次点击判定为双击）。
 
-## 提交信息
+3. **SetContextMenu 不存在**：NotifyIcon 没有 `SetContextMenu()` 方法，只能通过 `ContextMenu()` 获取现有菜单并用 `Actions().Add()` 添加菜单项。
 
-- **Commit SHA:** 88f9c3eb41d9ac7b2946c7b7929620295357bd58
-- **Subject:** feat: add API key whitelist validation in ProxyHandler
+4. **walk.App 是函数不是类型**：接口签名中的 `*walk.App` 应为 `*walk.Application`。
 
-## 测试结果
+5. **SetIcon 需要 Image 类型**：传入的是 icon 路径字符串，需要用 `walk.NewIconFromFile(iconPath)` 加载为 `*walk.Icon` 后再调用 `SetIcon`。
 
-```
-=== RUN   TestProxyHandler_ServeHTTP
---- PASS: TestProxyHandler_ServeHTTP (0.00s)
-PASS
-ok  	github.com/user/TinyProxyAPI/handler	1.189s
-```
+6. **Action.Triggered() 而非 Clicked()**：Action 的事件是 `Triggered()` 而非 `Clicked()`。
 
-所有测试通过。
-
-## 验收标准
-
-- [x] `handler/proxy.go` 中 ServeHTTP 方法包含 API Key 验证逻辑
-- [x] 缺失 Authorization header 返回 401
-- [x] 无效 API Key 返回 401
-- [x] 测试通过
-- [x] 提交已创建
+## Test Summary
+- `go build ./tray/` 通过编译
