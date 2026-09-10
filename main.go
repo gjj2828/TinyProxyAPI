@@ -12,10 +12,10 @@ import (
 	"github.com/user/TinyProxyAPI/handler"
 	"github.com/user/TinyProxyAPI/matcher"
 	"github.com/user/TinyProxyAPI/signal"
+	"github.com/user/TinyProxyAPI/state"
 	"github.com/user/TinyProxyAPI/tray"
 
 	"github.com/lxn/walk"
-	"github.com/lxn/win"
 )
 
 var (
@@ -23,10 +23,23 @@ var (
 	tr         *tray.Tray
 	logWin     *tray.LogWindow
 	configPath string
+	st         *state.State
+	statePath  string
 )
 
 func showError(title string, msg string) {
 	walk.MsgBox(nil, title, msg, walk.MsgBoxIconError)
+}
+
+// toggleLogWindow 切换日志窗口可见性，并同步托盘菜单勾选状态。
+// 菜单"显示日志"项与双击托盘共用这一份逻辑。
+func toggleLogWindow() {
+	if logWin.IsVisible() {
+		logWin.Hide()
+	} else {
+		logWin.Show()
+	}
+	tr.SyncMenuState(st.ShowLogOnStartup, logWin.IsVisible())
 }
 
 func main() {
@@ -34,10 +47,14 @@ func main() {
 	flag.Parse()
 	configPath = *configPathFlag
 
+	// exe 目录：从 PATH 启动时 os.Args[0] 可能只是文件名，用 os.Executable 取绝对路径
+	exe, _ := os.Executable()
+	exeDir := filepath.Dir(exe)
+
 	// 确保配置路径是绝对路径，优先使用 exe 所在目录
 	if !filepath.IsAbs(configPath) {
-		if filepath.Dir(os.Args[0]) != "" {
-			configPath = filepath.Join(filepath.Dir(os.Args[0]), configPath)
+		if exeDir != "" {
+			configPath = filepath.Join(exeDir, configPath)
 		}
 	}
 
@@ -47,6 +64,12 @@ func main() {
 		showError("配置加载失败", fmt.Sprintf("failed to load config: %v\n\n路径: %s", err, configPath))
 		return
 	}
+
+	// 界面状态独立存于 exe 同目录，不碰 config.toml
+	if exeDir != "" {
+		statePath = filepath.Join(exeDir, "state.json")
+	}
+	st = state.Load(statePath)
 
 	// 创建 walk 应用
 	app := walk.App()
@@ -58,8 +81,8 @@ func main() {
 		return
 	}
 
-	// 根据配置决定是否在启动时显示日志窗口
-	if conf.UI.ShowLogOnStartup {
+	// 根据界面状态决定是否在启动时显示日志窗口
+	if st.ShowLogOnStartup {
 		logWin.Show()
 	}
 
@@ -67,22 +90,37 @@ func main() {
 	log.SetOutput(&logWriter{logWin: logWin})
 	log.SetFlags(log.LstdFlags)
 
-	// 创建托盘
-	iconPath := filepath.Join(filepath.Dir(os.Args[0]), "icon.ico")
-	tr, err = tray.NewTray(app, iconPath)
+	// 创建托盘；菜单在 NewTray 内部一次性构建，编排逻辑全部在本文件
+	tr, err = tray.NewTray(app, tray.Handlers{
+		OnToggleLog: toggleLogWindow,
+		OnToggleStartup: func() {
+			st.ShowLogOnStartup = !st.ShowLogOnStartup
+			if saveErr := state.Save(statePath, st); saveErr != nil {
+				log.Printf("failed to save state: %v", saveErr)
+			}
+			tr.SyncMenuState(st.ShowLogOnStartup, logWin.IsVisible())
+		},
+		OnExit: func() {
+			if tr != nil {
+				tr.Destroy()
+			}
+			if logWin != nil {
+				logWin.Hide()
+			}
+			os.Exit(0)
+		},
+	})
 	if err != nil {
 		showError("托盘创建失败", fmt.Sprintf("failed to create tray: %v", err))
 		return
 	}
 	tr.SetTooltip("TinyProxyAPI")
 
-	// 初始化托盘菜单
-	tray.UpdateMenu(tr, logWin, conf, configPath)
+	// 建立初始勾选状态（NewTray 拿不到状态值，故在此设定一次）
+	tr.SyncMenuState(st.ShowLogOnStartup, logWin.IsVisible())
 
-	tr.OnDoubleClick(func() {
-		// 主窗口隐藏，双击托盘只切换日志窗口
-		tray.ToggleLogWindow(logWin, tr, conf, configPath)
-	})
+	// 主窗口隐藏，双击托盘只切换日志窗口
+	tr.OnDoubleClick(toggleLogWindow)
 
 	// 启动 HTTP 服务器
 	m := matcher.NewMatcher(conf)
@@ -136,7 +174,6 @@ func main() {
 			// 内部每次都会 Load 最新 matcher，新请求立即走新配置。
 			h.Update(matcher.NewMatcher(newCfg))
 			conf = newCfg
-			tray.UpdateMenu(tr, logWin, conf, configPath)
 			log.Println("config reloaded successfully")
 		}
 	}()
@@ -144,9 +181,6 @@ func main() {
 	// 运行消息循环
 	tr.MainWindow().Run()
 }
-
-// Dummy use of win package to avoid unused import error
-var _ = win.MB_OK
 
 // logWriter 实现 io.Writer，将日志写入日志窗口
 type logWriter struct {

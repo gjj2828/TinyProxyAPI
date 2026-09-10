@@ -3,29 +3,30 @@ package tray
 
 import (
 	"log"
-	"os"
 	"time"
 
 	"github.com/lxn/walk"
-
-	"github.com/user/TinyProxyAPI/config"
 )
 
+// Handlers 是托盘菜单各项的回调。tray 包只负责"显示菜单"和"报告菜单被点击"，
+// 一次点击意味着什么（读写状态、显示窗口、退出）由调用方在 main.go 里决定。
+type Handlers struct {
+	OnToggleLog     func()
+	OnToggleStartup func()
+	OnExit          func()
+}
+
 type Tray struct {
-	trayIcon     *walk.NotifyIcon
-	app          *walk.Application
-	mainWindow   *walk.MainWindow
+	trayIcon      *walk.NotifyIcon
+	app           *walk.Application
+	mainWindow    *walk.MainWindow
+	actShowLog    *walk.Action
+	actStartup    *walk.Action
 	onDoubleClick func()
-	lastClick    time.Time
+	lastClick     time.Time
 }
 
-type MenuItem struct {
-	Text    string
-	Checked bool
-	OnClick func()
-}
-
-func NewTray(app *walk.Application, iconPath string) (*Tray, error) {
+func NewTray(app *walk.Application, h Handlers) (*Tray, error) {
 	t := &Tray{app: app}
 
 	// Create a hidden main window as the host for NotifyIcon
@@ -42,10 +43,10 @@ func NewTray(app *walk.Application, iconPath string) (*Tray, error) {
 	}
 	t.trayIcon = ni
 
-	icon, err := walk.NewIconFromFile(iconPath)
+	// 图标：直接取系统图标，失败只记录警告（内嵌资源降级链由后续任务补齐）
+	icon, err := walk.NewIconFromSysDLL("shell32", 15)
 	if err != nil {
-		// icon.ico 不存在时使用默认图标，继续运行
-		log.Printf("warn: icon file not found, using default: %v", err)
+		log.Printf("warn: system icon unavailable, tray may be invisible: %v", err)
 	} else {
 		if err := t.trayIcon.SetIcon(icon); err != nil {
 			return nil, err
@@ -57,6 +58,42 @@ func NewTray(app *walk.Application, iconPath string) (*Tray, error) {
 		return nil, err
 	}
 
+	// 菜单只构建一次，此后仅通过 SyncMenuState 翻动勾选状态
+	menu := t.trayIcon.ContextMenu()
+
+	actShowLog := walk.NewAction()
+	actShowLog.SetText("显示日志")
+	actShowLog.SetCheckable(true)
+	if h.OnToggleLog != nil {
+		actShowLog.Triggered().Attach(h.OnToggleLog)
+	}
+	t.actShowLog = actShowLog
+
+	actStartup := walk.NewAction()
+	actStartup.SetText("日志启动时显示")
+	actStartup.SetCheckable(true)
+	if h.OnToggleStartup != nil {
+		actStartup.Triggered().Attach(h.OnToggleStartup)
+	}
+	t.actStartup = actStartup
+
+	// "退出"不设 Checkable：它是一次性动作，不该带勾选框
+	actExit := walk.NewAction()
+	actExit.SetText("退出")
+	if h.OnExit != nil {
+		actExit.Triggered().Attach(h.OnExit)
+	}
+
+	if err := menu.Actions().Add(actShowLog); err != nil {
+		return nil, err
+	}
+	if err := menu.Actions().Add(actStartup); err != nil {
+		return nil, err
+	}
+	if err := menu.Actions().Add(actExit); err != nil {
+		return nil, err
+	}
+
 	return t, nil
 }
 
@@ -64,16 +101,10 @@ func (t *Tray) SetTooltip(text string) {
 	t.trayIcon.SetToolTip(text)
 }
 
-func (t *Tray) SetMenu(items []MenuItem) {
-	menu := t.trayIcon.ContextMenu()
-	for _, item := range items {
-		action := walk.NewAction()
-		action.SetText(item.Text)
-		action.SetChecked(item.Checked)
-		action.SetCheckable(true)
-		action.Triggered().Attach(item.OnClick)
-		menu.Actions().Add(action)
-	}
+// SyncMenuState 把当前界面状态同步到菜单勾选框。仅设置勾选值，不改菜单结构。
+func (t *Tray) SyncMenuState(showLog, startup bool) {
+	t.actShowLog.SetChecked(showLog)
+	t.actStartup.SetChecked(startup)
 }
 
 func (t *Tray) OnDoubleClick(handler func()) {
@@ -101,66 +132,4 @@ func (t *Tray) Destroy() {
 // MainWindow returns the hidden main window used as tray host
 func (t *Tray) MainWindow() *walk.MainWindow {
 	return t.mainWindow
-}
-
-// UpdateMenu updates the tray menu with current state
-func UpdateMenu(t *Tray, logWin *LogWindow, conf *config.Config, configPath string) {
-	showLogChecked := logWin != nil && logWin.IsVisible()
-	startupChecked := conf.UI.ShowLogOnStartup
-
-	items := []MenuItem{
-		{
-			Text:    "显示日志",
-			Checked: showLogChecked,
-			OnClick: func() {
-				ToggleLogWindow(logWin, t, conf, configPath)
-			},
-		},
-		{
-			Text:    "日志启动时显示",
-			Checked: startupChecked,
-			OnClick: func() {
-				ToggleStartupSetting(logWin, t, conf, configPath)
-			},
-		},
-		{
-			Text: "退出",
-			OnClick: func() {
-				CleanupAndExit(logWin, t)
-			},
-		},
-	}
-	t.SetMenu(items)
-}
-
-// ToggleLogWindow toggles the log window visibility
-func ToggleLogWindow(logWin *LogWindow, t *Tray, conf *config.Config, configPath string) {
-	if logWin.IsVisible() {
-		logWin.Hide()
-	} else {
-		logWin.Show()
-	}
-	UpdateMenu(t, logWin, conf, configPath)
-}
-
-// ToggleStartupSetting toggles the show log on startup setting
-func ToggleStartupSetting(logWin *LogWindow, t *Tray, conf *config.Config, configPath string) {
-	conf.UI.ShowLogOnStartup = !conf.UI.ShowLogOnStartup
-
-	// 保存配置
-	if err := config.SaveConfig(configPath, conf); err != nil {
-		log.Printf("failed to save config: %v", err)
-	}
-	UpdateMenu(t, logWin, conf, configPath)
-}
-
-// CleanupAndExit cleans up resources and exits
-func CleanupAndExit(logWin *LogWindow, t *Tray) {
-	if t != nil {
-		t.Destroy()
-	}
-	if logWin != nil {
-		logWin.Hide()
-	}
-	os.Exit(0)
 }
