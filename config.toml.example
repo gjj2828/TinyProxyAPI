@@ -1,11 +1,15 @@
 # config.toml.example
+#
+# IMPORTANT: 顶层 key（如 `allowed_keys`）必须放在所有 `[table]` 之前，
+# 否则 TOML 会把它们归入最近的上一个 [table] 段，导致字段被静默忽略。
+
+allowed_keys = ["your-key-here"]
+
 [server]
 addr = ":3178"
 
 [default]
 platform = "openai"
-
-allowed_keys = ["your-key-here"]
 
 [platforms]
 "openai" = { base_url = "https://api.openai.com", api_key = "sk-your-openai-key" }

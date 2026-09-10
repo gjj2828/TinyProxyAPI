@@ -7,7 +7,7 @@
 - **透传** - 使用 `httputil.ReverseProxy`，最小化 Header 和 Body 修改
 - **灵活路由** - 模型名全量匹配，通过 TOML 配置
 - **平台抽象** - 同一平台的多个模型共享 base_url 和 api_key
-- **热重载** - SIGHUP 信号触发配置重载
+- **热重载** - 改完 `config.toml` 保存即生效（基于 fsnotify 跨平台监听）；Linux/Mac 也可发 SIGHUP 触发
 
 ## 快速开始
 
@@ -15,6 +15,8 @@
 
 ```toml
 # config.toml
+allowed_keys = ["your-client-key-here"]
+
 [server]
 addr = ":3178"
 
@@ -30,6 +32,9 @@ platform = "openai"
 "gpt-4o-mini" = "openai"
 "claude-sonnet-4-20250514" = "anthropic"
 ```
+
+> ⚠️ **TOML 坑**：`allowed_keys` 是顶层 key，必须放在**所有 `[table]` 之前**。
+> 如果写在 `[default]` 之后，它会被归入 `[default]` 表，但由于 `DefaultConfig` 结构体没有 `AllowedKeys` 字段，这个值会被**静默忽略**，导致所有客户端 key 都被白名单拒绝、代理返回 401 `invalid api key`。
 
 ### 运行
 
@@ -50,7 +55,9 @@ curl -X POST http://localhost:3178/v1/responses \
 
 ## 配置热重载
 
-修改 `config.toml` 后，发送 SIGHUP 信号：
+**保存 `config.toml` 后自动生效**——程序通过 fsnotify 监听配置文件，跨平台都支持（Windows / macOS / Linux）。
+
+如果想手动触发（仅 Linux/Mac）：
 
 ```bash
 kill -HUP $(pidof TinyProxyAPI)
@@ -68,12 +75,14 @@ TinyProxyAPI/
 ├── matcher/
 │   └── matcher.go    # 路由匹配
 ├── signal/
-│   └── sighup.go     # SIGHUP 处理
+│   ├── sighup.go     # SIGHUP 信号处理（Linux/Mac）
+│   └── watcher.go    # fsnotify 文件监听（跨平台）
 ├── config.toml       # 配置文件
 └── config.toml.example
 ```
 
 ## 依赖
 
-- Go 1.21+
+- Go 1.22+
 - github.com/pelletier/go-toml/v2
+- github.com/fsnotify/fsnotify

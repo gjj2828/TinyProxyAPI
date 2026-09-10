@@ -8,16 +8,32 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"sync/atomic"
 
 	"github.com/user/TinyProxyAPI/matcher"
 )
 
+// ProxyHandler 是 HTTP server 持有的单例 handler。
+// matcher 通过 atomic.Pointer 持有，支持运行时原子替换（热重载）。
 type ProxyHandler struct {
-	matcher *matcher.Matcher
+	matcher atomic.Pointer[matcher.Matcher]
 }
 
 func NewProxyHandler(m *matcher.Matcher) *ProxyHandler {
-	return &ProxyHandler{matcher: m}
+	h := &ProxyHandler{}
+	h.matcher.Store(m)
+	return h
+}
+
+// Update 原子替换当前 matcher，用于配置热重载。
+func (h *ProxyHandler) Update(m *matcher.Matcher) {
+	h.matcher.Store(m)
+}
+
+// currentMatcher 返回当前 matcher。每个请求都重新 Load，
+// 这样 Update 后所有后续请求立即生效。
+func (h *ProxyHandler) currentMatcher() *matcher.Matcher {
+	return h.matcher.Load()
 }
 
 func (h *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -58,8 +74,9 @@ func (h *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 恢复 body 给后续 ReverseProxy 使用
 	r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 
-	// 匹配平台
-	platform, ok := h.matcher.Match(reqBody.Model)
+	// 匹配平台 —— 每次请求取最新 matcher
+	m := h.currentMatcher()
+	platform, ok := m.Match(reqBody.Model)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -89,7 +106,7 @@ func (h *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		authKey = authHeader[7:]
 	}
 	valid := false
-	for _, key := range h.matcher.GetAllowedKeys() {
+	for _, key := range m.GetAllowedKeys() {
 		if key == authKey {
 			valid = true
 			break
