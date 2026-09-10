@@ -42,6 +42,18 @@ func toggleLogWindow() {
 	tr.SyncMenuState(logWin.IsVisible(), st.ShowLogOnStartup)
 }
 
+// activateLogWindow 将日志窗口显示并激活到前台。
+// 日志窗口隐藏时调用 Show()；已显示时调用 Activate() 置于前台。
+// 菜单勾选框由调用方同步。
+func activateLogWindow() {
+	if !logWin.IsVisible() {
+		logWin.Show()
+		tr.SyncMenuState(true, st.ShowLogOnStartup)
+	} else {
+		logWin.Activate()
+	}
+}
+
 func main() {
 	configPathFlag := flag.String("config", "config.toml", "path to config file")
 	flag.Parse()
@@ -109,7 +121,8 @@ func main() {
 
 	// 创建托盘；菜单在 NewTray 内部一次性构建，编排逻辑全部在本文件
 	tr, err = tray.NewTray(app, tray.Handlers{
-		OnToggleLog: toggleLogWindow,
+		OnToggleLog:    toggleLogWindow,
+		OnLeftClick:    activateLogWindow,
 		OnToggleStartup: func() {
 			st.ShowLogOnStartup = !st.ShowLogOnStartup
 			if saveErr := state.Save(statePath, st); saveErr != nil {
@@ -144,9 +157,6 @@ func main() {
 	logWin.SetOnHidden(func() {
 		tr.SyncMenuState(logWin.IsVisible(), st.ShowLogOnStartup)
 	})
-
-	// 主窗口隐藏，双击托盘只切换日志窗口
-	tr.OnLeftClick(toggleLogWindow)
 
 	// 启动 HTTP 服务器
 	m := matcher.NewMatcher(conf)
