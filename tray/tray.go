@@ -17,9 +17,10 @@ import (
 // 重新生成 icon.ico / rsrc.syso 后可用 `go run ./tools/resid <exe>` 复核。
 //
 // 为什么用 GROUP_ICON 的 ID 而不是某个 RT_ICON 的 ID：walk.NewIconFromResourceId
-// 走 newIconFromResource -> checkNewIcon -> loadIcon，最终调用 Win32
-// LoadIconWithScaleDown(hInst, ...)，其中 hInst 是 exe 自身的实例句柄
-// （见 walk/icon.go 的 NewIconFromResourceId 与 loadIcon）。LoadIcon 系按资源名
+// 走 newIconFromResource -> checkNewIcon -> handleForDPIWithError，最终调用
+// Win32 LoadIconWithScaleDown(hInst, ...)，其中 hInst 是 exe 自身的实例句柄
+// （见 walk/icon.go 的 NewIconFromResourceId 与 handleForDPIWithError）。
+// LoadIcon 系按资源名
 // 解析，图标组资源（GROUP_ICON）正是多尺寸 rc 图标的通用约定，所以传组 ID 即可，
 // 系统会自行挑最合适的那一档尺寸。
 const iconResourceID = 2
