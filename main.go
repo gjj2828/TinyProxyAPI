@@ -136,9 +136,11 @@ func main() {
 	// 建立初始勾选状态（NewTray 拿不到状态值，故在此设定一次）
 	tr.SyncMenuState(logWin.IsVisible(), st.ShowLogOnStartup)
 
-	// 关闭按钮和最小化都会在 tray 包内部隐藏日志窗口，main.go 只能通过
-	// 这个回调感知到。回调触发时窗口已经隐藏，所以按当前可见性同步即可，
-	// 无需判断是哪条路径。
+	// 关闭按钮会在 tray 包内部隐藏日志窗口（tray 包拦截 Closing 改成 Hide），
+	// main.go 只能通过这个回调感知到。回调触发时窗口已经隐藏，所以按当前可见性
+	// 同步即可。最小化走 Windows 原生最小化、不隐藏，因此不经过这个回调——
+	// 此时勾选框会保持已勾选，直到下一次菜单交互才刷新（walk 没有最小化事件，
+	// 要即时更新只能加窗口过程钩子或轮询）。
 	logWin.SetOnHidden(func() {
 		tr.SyncMenuState(logWin.IsVisible(), st.ShowLogOnStartup)
 	})

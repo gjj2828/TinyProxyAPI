@@ -2,7 +2,7 @@
 package tray
 
 import (
-	"time"
+	"unsafe"
 
 	"github.com/lxn/walk"
 	"github.com/lxn/win"
@@ -11,8 +11,8 @@ import (
 type LogWindow struct {
 	*walk.MainWindow
 	textEdit *walk.TextEdit
-	// onHidden 在窗口"自我隐藏"时回调。关闭按钮和最小化轮询这两条隐藏路径
-	// 都在本包内部触发，main.go 无从察觉；不回调的话托盘菜单的"显示日志"
+	// onHidden 在窗口"自我隐藏"时回调。关闭按钮的隐藏发生在本包内部的
+	// Closing 处理里，main.go 无从察觉；不回调的话托盘菜单的"显示日志"
 	// 勾选框会停留在已勾选状态。
 	onHidden func()
 }
@@ -69,19 +69,14 @@ func ShowLogWindow() (*LogWindow, error) {
 		lw.hideSelf()
 	})
 
-	// 最小化时隐藏窗口（仅在托盘显示）
-	// 定期检测窗口是否最小化，如果是则隐藏
-	if hwnd != 0 {
-		go func() {
-			ticker := time.NewTicker(500 * time.Millisecond)
-			defer ticker.Stop()
-			for range ticker.C {
-				if win.IsIconic(hwnd) && lw.Visible() {
-					lw.hideSelf()
-				}
-			}
-		}()
-	}
+	// 最小化不做处理：走 Windows 原生最小化，任务栏保留图标。
+	//
+	// 之前这里有个 500ms 轮询，最小化后把窗口 SW_HIDE 掉（只留托盘）。改成不处理
+	// 有两层原因：
+	//  1. 语义上最小化与关闭的"隐藏"重复了，用户点最小化预期是看到任务栏图标；
+	//  2. SW_HIDE 会污染 walk 内部的 proposedSize，还原时窗口被缩成 276x77
+	//     （见 Show 的注释）。不 SW_HIDE 就没有这个污染，也不再有轮询 goroutine
+	//     从后台线程调 walk 的 SetVisible。
 
 	return lw, nil
 }
@@ -107,14 +102,39 @@ func (lw *LogWindow) IsVisible() bool {
 
 // Show 显示并激活窗口。
 //
-// 必须先解除 iconic 状态：walk 的 Show 内部走 SW_SHOWNA（见 walk/window.go 的
-// setWindowVisible），而 SW_SHOWNA 对最小化窗口不会还原，窗口会以任务栏图标形态
-// "显示"——用户视角就是点了"显示日志"但窗口不出来。最小化路径用 SW_HIDE 隐藏
-// 窗口，SW_HIDE 不清除 iconic 标志，所以被最小化隐藏的窗口仍处于 iconic 状态。
-// 若改在隐藏侧清理 iconic，需要先 SW_RESTORE 再 SW_HIDE，窗口会闪一下，故只在此处处理。
+// 窗口处于最小化（iconic）状态时必须先还原，不能直接调 walk 的 Show：
+// walk 的 Show 内部走 SW_SHOWNA（见 walk/window.go 的 setWindowVisible），
+// 而 SW_SHOWNA 不还原最小化窗口，窗口只会以任务栏图标形态"显示"——用户视角就是
+// 点了"显示日志"但窗口不出来。
+//
+// 还原的顺序有讲究，三步都不能少：
+//  1. 先从 RcNormalPosition 记下正常矩形；
+//  2. SW_RESTORE 还原；
+//  3. 用 SetBoundsPixels 把矩形设回去。
+//
+// 第 3 步是必需的：SW_RESTORE 期间 walk 的 startLayout 会按当时的 proposedSize
+// 重新布局（form.go:681 里 cs < min 时调 SetSizePixels），而 proposedSize 在最小化
+// 时被 WM_WINDOWPOSCHANGED 写成了任务栏图标的 276x45，窗口就会被缩成 276x77。
+// SetBoundsPixels 除了设矩形，还会把 proposedSize 一并修正（form.go:217），
+// 之后紧跟的 walk Show 里的重算才拿到正确尺寸。
 func (lw *LogWindow) Show() {
-	if hwnd := lw.Handle(); hwnd != 0 && win.IsIconic(hwnd) {
+	hwnd := lw.Handle()
+	if hwnd != 0 && win.IsIconic(hwnd) {
+		var wp win.WINDOWPLACEMENT
+		wp.Length = uint32(unsafe.Sizeof(wp))
+		var normal win.RECT
+		if win.GetWindowPlacement(hwnd, &wp) {
+			normal = wp.RcNormalPosition
+		}
+
 		win.ShowWindow(hwnd, win.SW_RESTORE)
+
+		lw.SetBoundsPixels(walk.Rectangle{
+			X:      int(normal.Left),
+			Y:      int(normal.Top),
+			Width:  int(normal.Right - normal.Left),
+			Height: int(normal.Bottom - normal.Top),
+		})
 	}
 	lw.MainWindow.Show()
 	lw.Activate()
@@ -125,7 +145,7 @@ func (lw *LogWindow) Hide() {
 	lw.MainWindow.Hide()
 }
 
-// hideSelf 供窗口内部的自我隐藏路径（关闭按钮、最小化轮询）使用：
+// hideSelf 供窗口内部的自我隐藏路径（关闭按钮）使用：
 // 隐藏并回调通知，让 main.go 能同步托盘菜单勾选框。
 func (lw *LogWindow) hideSelf() {
 	lw.MainWindow.Hide()
@@ -134,7 +154,7 @@ func (lw *LogWindow) hideSelf() {
 	}
 }
 
-// SetOnHidden 注册窗口被自身机制隐藏（关闭按钮、最小化）时的回调。
+// SetOnHidden 注册窗口被自身机制隐藏（关闭按钮）时的回调。
 func (lw *LogWindow) SetOnHidden(fn func()) {
 	lw.onHidden = fn
 }
