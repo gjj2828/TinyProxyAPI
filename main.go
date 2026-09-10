@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/user/TinyProxyAPI/tray"
 
 	"github.com/lxn/walk"
+	"github.com/lxn/win"
 )
 
 var (
@@ -23,15 +25,27 @@ var (
 	configPath string
 )
 
+func showError(title string, msg string) {
+	walk.MsgBox(nil, title, msg, walk.MsgBoxIconError)
+}
+
 func main() {
 	configPathFlag := flag.String("config", "config.toml", "path to config file")
 	flag.Parse()
 	configPath = *configPathFlag
 
+	// 确保配置路径是绝对路径，优先使用 exe 所在目录
+	if !filepath.IsAbs(configPath) {
+		if filepath.Dir(os.Args[0]) != "" {
+			configPath = filepath.Join(filepath.Dir(os.Args[0]), configPath)
+		}
+	}
+
 	var err error
 	conf, err = config.LoadConfig(configPath)
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		showError("配置加载失败", fmt.Sprintf("failed to load config: %v\n\n路径: %s", err, configPath))
+		return
 	}
 
 	// 创建 walk 应用
@@ -40,7 +54,8 @@ func main() {
 	// 创建日志窗口
 	logWin, err = tray.ShowLogWindow()
 	if err != nil {
-		log.Fatalf("failed to create log window: %v", err)
+		showError("日志窗口创建失败", fmt.Sprintf("failed to create log window: %v", err))
+		return
 	}
 
 	// 根据配置决定是否在启动时显示日志窗口
@@ -52,7 +67,8 @@ func main() {
 	iconPath := filepath.Join(filepath.Dir(os.Args[0]), "icon.ico")
 	tr, err = tray.NewTray(app, iconPath)
 	if err != nil {
-		log.Fatalf("failed to create tray: %v", err)
+		showError("托盘创建失败", fmt.Sprintf("failed to create tray: %v", err))
+		return
 	}
 	tr.SetTooltip("TinyProxyAPI")
 
@@ -124,3 +140,6 @@ func main() {
 	// 运行消息循环
 	tr.MainWindow().Run()
 }
+
+// Dummy use of win package to avoid unused import error
+var _ = win.MB_OK
