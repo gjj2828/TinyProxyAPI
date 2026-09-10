@@ -147,6 +147,17 @@ func NewTray(app *walk.Application, h Handlers) (*Tray, error) {
 		return nil, err
 	}
 
+	// 注册左键单击/双击处理（两者等价）。
+	// 必须在菜单构建完之后注册，否则 NewTray 返回后 NotifyIcon 状态尚未稳定，
+	// MouseDown 事件可能丢失（重现：左键单击托盘图标无反应）。
+	if h.OnLeftClick != nil {
+		t.trayIcon.MouseDown().Attach(func(x, y int, button walk.MouseButton) {
+			if button == walk.LeftButton {
+				h.OnLeftClick()
+			}
+		})
+	}
+
 	return t, nil
 }
 
@@ -160,14 +171,11 @@ func (t *Tray) SyncMenuState(showLog, startup bool) {
 	t.actStartup.SetChecked(startup)
 }
 
-// OnLeftClick 注册左键单击/双击处理函数（两者等价）。
-// 每次左键按下都触发 handler，不做单双击计时区分。
+// OnLeftClick 保留方法签名以避免破坏外部调用，但实际注册已在 NewTray 内完成。
+// 再次调用是 no-op，避免重复绑定 MouseDown 触发多次回调。
 func (t *Tray) OnLeftClick(handler func()) {
-	t.trayIcon.MouseDown().Attach(func(x, y int, button walk.MouseButton) {
-		if button == walk.LeftButton && handler != nil {
-			handler()
-		}
-	})
+	// no-op: 注册已由 NewTray 在 NotifyIcon 初始化时完成
+	_ = handler
 }
 
 func (t *Tray) Destroy() {
