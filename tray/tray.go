@@ -171,12 +171,6 @@ func (t *Tray) SyncMenuState(showLog, startup bool) {
 	t.actStartup.SetChecked(startup)
 }
 
-// OnLeftClick 保留方法签名以避免破坏外部调用，但实际注册已在 NewTray 内完成。
-// 再次调用是 no-op，避免重复绑定 MouseDown 触发多次回调。
-func (t *Tray) OnLeftClick(handler func()) {
-	// no-op: 注册已由 NewTray 在 NotifyIcon 初始化时完成
-	_ = handler
-}
 
 func (t *Tray) Destroy() {
 	t.trayIcon.Dispose()

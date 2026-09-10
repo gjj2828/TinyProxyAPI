@@ -44,7 +44,9 @@ func toggleLogWindow() {
 }
 
 // activateLogWindow 将日志窗口显示并激活到前台。
-// 日志窗口隐藏时调用 Show()；已显示时通过 win32 API 还原最小化、提到最前。
+// 隐藏时调用 Show()（内部处理最小化还原）；已显示时用 SetForegroundWindow+
+// BringWindowToTop 强制提到 Z-order 最前（walk.Activate 在托盘回调上下文可能
+// 不够可靠）。
 // 菜单勾选框由调用方同步。
 func activateLogWindow() {
 	if !logWin.IsVisible() {
