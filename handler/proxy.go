@@ -133,9 +133,9 @@ func (h *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 构建目标 URL
+	// 构建目标 URL —— NewSingleHostReverseProxy 会把 r.URL.Path 追加到 target.Path 后面，
+	// 所以这里只设置 Scheme/Host，不要手动设置 Path，否则会变成 /v1/responses/v1/responses。
 	target, _ := url.Parse(platform.BaseURL)
-	target.Path = "/v1/responses"
 
 	// 创建 ReverseProxy
 	proxy := httputil.NewSingleHostReverseProxy(target)
