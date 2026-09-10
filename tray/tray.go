@@ -52,6 +52,11 @@ func NewTray(app *walk.Application, iconPath string) (*Tray, error) {
 		}
 	}
 
+	// 必须显式调用 SetVisible(true) 才能显示托盘图标
+	if err := t.trayIcon.SetVisible(true); err != nil {
+		return nil, err
+	}
+
 	return t, nil
 }
 

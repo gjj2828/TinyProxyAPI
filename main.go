@@ -63,6 +63,10 @@ func main() {
 		logWin.Show()
 	}
 
+	// 将日志输出重定向到日志窗口
+	log.SetOutput(&logWriter{logWin: logWin})
+	log.SetFlags(log.LstdFlags)
+
 	// 创建托盘
 	iconPath := filepath.Join(filepath.Dir(os.Args[0]), "icon.ico")
 	tr, err = tray.NewTray(app, iconPath)
@@ -143,3 +147,15 @@ func main() {
 
 // Dummy use of win package to avoid unused import error
 var _ = win.MB_OK
+
+// logWriter 实现 io.Writer，将日志写入日志窗口
+type logWriter struct {
+	logWin *tray.LogWindow
+}
+
+func (w *logWriter) Write(p []byte) (n int, err error) {
+	if w.logWin != nil {
+		w.logWin.AppendText(string(p))
+	}
+	return len(p), nil
+}
