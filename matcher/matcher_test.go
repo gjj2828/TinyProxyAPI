@@ -23,18 +23,18 @@ func TestMatcher_Match(t *testing.T) {
 	m := NewMatcher(cfg)
 
 	// Test exact match
-	p, ok := m.Match("gpt-4o")
-	if !ok {
-		t.Fatal("expected match for gpt-4o")
+	p, err := m.Match("gpt-4o")
+	if err != nil {
+		t.Fatalf("expected match for gpt-4o, got error: %v", err)
 	}
 	if p.BaseURL != "https://api.openai.com" {
 		t.Errorf("expected https://api.openai.com, got %s", p.BaseURL)
 	}
 
 	// Test fallback to default
-	p, ok = m.Match("unknown-model")
-	if !ok {
-		t.Fatal("expected fallback match")
+	p, err = m.Match("unknown-model")
+	if err != nil {
+		t.Fatalf("expected fallback match, got error: %v", err)
 	}
 	if p.APIKey != "sk-test" {
 		t.Errorf("expected sk-test, got %s", p.APIKey)

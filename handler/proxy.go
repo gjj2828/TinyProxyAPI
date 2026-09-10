@@ -4,6 +4,7 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -76,12 +77,21 @@ func (h *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// 匹配平台 —— 每次请求取最新 matcher
 	m := h.currentMatcher()
-	platform, ok := m.Match(reqBody.Model)
-	if !ok {
+	platform, err := m.Match(reqBody.Model)
+	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
+		var msg string
+		switch {
+		case errors.Is(err, matcher.ErrModelNotConfigured):
+			msg = "model not configured: " + reqBody.Model + " (add it to [models] or set [default].platform)"
+		case errors.Is(err, matcher.ErrPlatformNotFound):
+			msg = "default platform not found in [platforms]: " + m.GetDefaultPlatform()
+		default:
+			msg = "model not found: " + reqBody.Model
+		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": map[string]string{
-				"message": "model not found",
+				"message": msg,
 				"type":    "invalid_request_error",
 			},
 		})
