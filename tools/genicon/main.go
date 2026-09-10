@@ -19,6 +19,7 @@ import (
 	"image/color"
 	"image/png"
 	"math"
+	"math/bits"
 	"os"
 	"path/filepath"
 )
@@ -210,8 +211,10 @@ func renderGlyph(s, r, g, b int) *image.RGBA {
 		dots = append(dots, dot{tx, ty * scale})
 	}
 
-	for _, s := range segments {
-		draw(func(im *image.RGBA) { strokeLine(im, s.x1, s.y1, s.x2, s.y2, strokeW, r, g, b) })
+	// 用 seg 而不是 s：外层 renderGlyph 有名为 s 的尺寸参数，遮蔽它只会让
+	// downsample(img, ss, s) 在循环体内被静默改变行为。
+	for _, seg := range segments {
+		draw(func(im *image.RGBA) { strokeLine(im, seg.x1, seg.y1, seg.x2, seg.y2, strokeW, r, g, b) })
 	}
 	for _, d := range dots {
 		draw(func(im *image.RGBA) { fillCircle(im, d.x, d.y, dotR, r, g, b) })
@@ -335,8 +338,6 @@ func icoBytes(dirs []iconDir, blobs [][]byte) []byte {
 	buf.Write([]byte{0, 0})                       // reserved
 	binary.Write(&buf, le, uint16(1))             // type: ICO
 	binary.Write(&buf, le, uint16(len(dirs)))     // count
-	headerSize := uint32(6)
-	off := headerSize + uint32(16*len(dirs))
 	for _, d := range dirs {
 		buf.WriteByte(d.wWidth)
 		buf.WriteByte(d.hHeight)
@@ -346,7 +347,6 @@ func icoBytes(dirs []iconDir, blobs [][]byte) []byte {
 		binary.Write(&buf, le, d.bitCount)
 		binary.Write(&buf, le, d.bytesInRes)
 		binary.Write(&buf, le, d.imageOffset)
-		_ = off
 	}
 	for _, blob := range blobs {
 		buf.Write(blob)
@@ -401,6 +401,100 @@ func repoRoot() string {
 		return wd
 	}
 	return filepath.Clean(filepath.Join(wd, "..", ".."))
+}
+
+// checkBMPPlanes 从参考图 ref 独立重建 XOR 颜色平面与 AND 透明掩码，
+// 再和 DIB 里实际存着的字节逐字节比对。任何一侧损坏都会在这里报错。
+//
+// 掩码是独立算的，不是拿 encodeBMP 的输出复读：1 表示透明、按 4 字节对齐的
+// 行、位序 7-x%8。返回的是问题列表，空表示全部通过。
+func checkBMPPlanes(dib []byte, w int, ref *image.RGBA, rowBytes, maskRow uint32) []string {
+	prob := []string{}
+	bw, bh := ref.Bounds().Dx(), ref.Bounds().Dy()
+	if bw != w || bh != w {
+		return []string{fmt.Sprintf("reference image %dx%d != %dx%d", bw, bh, w, w)}
+	}
+
+	xorOff := 40
+	maskOff := int(xorOff) + int(rowBytes)*bh
+	if maskOff+int(maskRow)*bh > len(dib) {
+		return []string{fmt.Sprintf("plane offset %d+%d exceeds DIB %d", maskOff, int(maskRow)*bh, len(dib))}
+	}
+
+	// 独立重建 XOR 平面（自底向上，BGRA）并逐字节比对
+	wantXor := make([]byte, rowBytes*uint32(bh))
+	for y := bh - 1; y >= 0; y-- {
+		base := (bh-1-y) * int(rowBytes)
+		for x := 0; x < bw; x++ {
+			p := ref.RGBAAt(x, y)
+			o := base + x*4
+			wantXor[o] = p.B
+			wantXor[o+1] = p.G
+			wantXor[o+2] = p.R
+			wantXor[o+3] = p.A
+		}
+	}
+	if !bytes.Equal(dib[xorOff:xorOff+int(rowBytes)*bh], wantXor) {
+		n := countByteDiff(dib[xorOff:xorOff+int(rowBytes)*bh], wantXor)
+		prob = append(prob, fmt.Sprintf("XOR color plane differs in %d/%d bytes", n, len(wantXor)))
+	}
+
+	// 独立重建 AND 掩码并逐字节比对
+	wantMask := make([]byte, maskRow*uint32(bh))
+	for y := 0; y < bh; y++ {
+		row := wantMask[y*int(maskRow) : (y+1)*int(maskRow)]
+		for x := 0; x < bw; x++ {
+			if ref.RGBAAt(x, y).A == 0 {
+				row[x/8] |= 1 << uint(7-(x%8))
+			}
+		}
+	}
+	if !bytes.Equal(dib[maskOff:maskOff+int(maskRow)*bh], wantMask) {
+		n := countByteDiff(dib[maskOff:maskOff+int(maskRow)*bh], wantMask)
+		prob = append(prob, fmt.Sprintf("AND transparency mask differs in %d/%d bytes", n, len(wantMask)))
+	}
+
+	// 掩码置位总数必须等于完全透明像素数——这是"背景是否真的透明"的直接判据。
+	setBits := popcount(wantMask)
+	transparentPx := 0
+	for y := 0; y < bh; y++ {
+		for x := 0; x < bw; x++ {
+			if ref.RGBAAt(x, y).A == 0 {
+				transparentPx++
+			}
+		}
+	}
+	fileSetBits := popcount(dib[maskOff : maskOff+int(maskRow)*bh])
+	if fileSetBits != setBits {
+		prob = append(prob, fmt.Sprintf("AND mask set-bit count %d != expected %d", fileSetBits, setBits))
+	}
+	if fileSetBits != transparentPx {
+		prob = append(prob, fmt.Sprintf("AND mask set-bit count %d != A==0 pixel count %d", fileSetBits, transparentPx))
+	}
+
+	fmt.Printf("   planes ok: xor=%d bytes mask=%d bytes, %d/%d px transparent (%d mask bits set)\n",
+		len(wantXor), len(wantMask), transparentPx, bw*bh, setBits)
+	return prob
+}
+
+// popcount 统计字节序列里的置位总数。
+func popcount(b []byte) int {
+	n := 0
+	for _, c := range b {
+		n += bits.OnesCount8(c)
+	}
+	return n
+}
+
+// countByteDiff 报告两个等长切片有多少字节不相等，用于报错信息。
+func countByteDiff(a, b []byte) int {
+	n := 0
+	for i := range a {
+		if i < len(b) && a[i] != b[i] {
+			n++
+		}
+	}
+	return n
 }
 
 // verifyICO 解析刚写的 ICO 结构并逐字段自检。
@@ -509,6 +603,13 @@ func verifyICO(dirs []iconDir, blobs [][]byte) {
 				if uint32(len(dib)) != wantTotal {
 					prob = append(prob, fmt.Sprintf("DIB total %d != computed %d", len(dib), wantTotal))
 				}
+
+				// 内容级校验。只比字节数没用——掩码整片写成不透明也能通过
+				// wantTotal，却会让 16/32/48 渲染出黑底。所以从 img 独立重建
+				// 两个平面，再和文件里解出来的字节逐字节比对。重建走
+				// renderGlyph 而不是 encodeBMP，这样共享的编码缺陷两侧都能看见。
+				ref := renderGlyph(w, strokeR, strokeG, strokeB)
+				prob = append(prob, checkBMPPlanes(dib, w, ref, rowBytes, maskRow)...)
 			}
 		}
 
