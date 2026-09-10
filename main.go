@@ -136,6 +136,13 @@ func main() {
 	// 建立初始勾选状态（NewTray 拿不到状态值，故在此设定一次）
 	tr.SyncMenuState(logWin.IsVisible(), st.ShowLogOnStartup)
 
+	// 关闭按钮和最小化都会在 tray 包内部隐藏日志窗口，main.go 只能通过
+	// 这个回调感知到。回调触发时窗口已经隐藏，所以按当前可见性同步即可，
+	// 无需判断是哪条路径。
+	logWin.SetOnHidden(func() {
+		tr.SyncMenuState(logWin.IsVisible(), st.ShowLogOnStartup)
+	})
+
 	// 主窗口隐藏，双击托盘只切换日志窗口
 	tr.OnDoubleClick(toggleLogWindow)
 

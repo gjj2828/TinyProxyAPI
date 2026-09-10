@@ -8,6 +8,8 @@ state.json
 TinyProxyAPI
 TinyProxyAPI.exe
 *.exe
+# 覆盖运行中的 exe 时 Windows 生成的旧副本
+*.exe~
 
 # Go 工作目录
 *.test

@@ -11,6 +11,10 @@ import (
 type LogWindow struct {
 	*walk.MainWindow
 	textEdit *walk.TextEdit
+	// onHidden 在窗口"自我隐藏"时回调。关闭按钮和最小化轮询这两条隐藏路径
+	// 都在本包内部触发，main.go 无从察觉；不回调的话托盘菜单的"显示日志"
+	// 勾选框会停留在已勾选状态。
+	onHidden func()
 }
 
 func ShowLogWindow() (*LogWindow, error) {
@@ -62,7 +66,7 @@ func ShowLogWindow() (*LogWindow, error) {
 
 	ml.Closing().Attach(func(cancel *bool, reason walk.CloseReason) {
 		*cancel = true
-		lw.Hide()
+		lw.hideSelf()
 	})
 
 	// 最小化时隐藏窗口（仅在托盘显示）
@@ -73,7 +77,7 @@ func ShowLogWindow() (*LogWindow, error) {
 			defer ticker.Stop()
 			for range ticker.C {
 				if win.IsIconic(hwnd) && lw.Visible() {
-					lw.Hide()
+					lw.hideSelf()
 				}
 			}
 		}()
@@ -86,15 +90,51 @@ func (lw *LogWindow) AppendText(text string) {
 	lw.textEdit.AppendText(text)
 }
 
+// IsVisible 报告窗口是否处于"正常可见"状态。
+//
+// 最小化（iconic）的窗口 IsWindowVisible 仍返回 true，但对我们而言它等同于
+// 未显示：用户看不到内容，托盘菜单勾选框也应取消。不在此排除 iconic 的话，
+// 最小化后点"显示日志"会被判成"已可见"从而执行隐藏，而非把窗口还原出来。
 func (lw *LogWindow) IsVisible() bool {
-	return lw.Visible()
+	if !lw.Visible() {
+		return false
+	}
+	if hwnd := lw.Handle(); hwnd != 0 {
+		return !win.IsIconic(hwnd)
+	}
+	return true
 }
 
+// Show 显示并激活窗口。
+//
+// 必须先解除 iconic 状态：walk 的 Show 内部走 SW_SHOWNA（见 walk/window.go 的
+// setWindowVisible），而 SW_SHOWNA 对最小化窗口不会还原，窗口会以任务栏图标形态
+// "显示"——用户视角就是点了"显示日志"但窗口不出来。最小化路径用 SW_HIDE 隐藏
+// 窗口，SW_HIDE 不清除 iconic 标志，所以被最小化隐藏的窗口仍处于 iconic 状态。
+// 若改在隐藏侧清理 iconic，需要先 SW_RESTORE 再 SW_HIDE，窗口会闪一下，故只在此处处理。
 func (lw *LogWindow) Show() {
+	if hwnd := lw.Handle(); hwnd != 0 && win.IsIconic(hwnd) {
+		win.ShowWindow(hwnd, win.SW_RESTORE)
+	}
 	lw.MainWindow.Show()
 	lw.Activate()
 }
 
+// Hide 隐藏窗口。菜单勾选框由调用方同步，因此这里不触发 onHidden。
 func (lw *LogWindow) Hide() {
 	lw.MainWindow.Hide()
+}
+
+// hideSelf 供窗口内部的自我隐藏路径（关闭按钮、最小化轮询）使用：
+// 隐藏并回调通知，让 main.go 能同步托盘菜单勾选框。
+func (lw *LogWindow) hideSelf() {
+	lw.MainWindow.Hide()
+	if lw.onHidden != nil {
+		lw.onHidden()
+	}
+}
+
+// SetOnHidden 注册窗口被自身机制隐藏（关闭按钮、最小化）时的回调。
+func (lw *LogWindow) SetOnHidden(fn func()) {
+	lw.onHidden = fn
 }
