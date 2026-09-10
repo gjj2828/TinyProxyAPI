@@ -13,3 +13,6 @@ TinyProxyAPI.exe
 # IDE
 .idea/
 .vscode/
+
+# 头脑风暴可视化伴侣的临时产物
+.superpowers/brainstorm/
