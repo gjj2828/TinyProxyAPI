@@ -13,6 +13,11 @@ type Config struct {
 	AllowedKeys []string  `toml:"allowed_keys"`
 	Platforms  map[string]Platform
 	Models     map[string]string
+	UI         UIConfig
+}
+
+type UIConfig struct {
+	ShowLogOnStartup bool `toml:"show_log_on_startup"`
 }
 
 type ServerConfig struct {
