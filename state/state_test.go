@@ -74,6 +74,27 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
+// 文件存在但缺少键时（如空对象 {}），应读出默认值 true。
+// 这验证"先构造默认值再 Unmarshal"的顺序：若用零值结构体直接 Unmarshal，
+// 缺失的键不会触发任何赋值，ShowLogOnStartup 会错误地保持 false。
+func TestLoadMissingKey(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.json")
+
+	if err := os.WriteFile(path, []byte("{}"), 0644); err != nil {
+		t.Fatalf("写入测试文件失败: %v", err)
+	}
+
+	s := Load(path)
+
+	if s == nil {
+		t.Fatal("Load 返回了 nil")
+	}
+	if !s.ShowLogOnStartup {
+		t.Errorf("缺失 show_log_on_startup 键时应读出默认值 true，实际为 %v", s.ShowLogOnStartup)
+	}
+}
+
 // Save 成功后不应在同目录留下任何 .tmp 残留文件。
 func TestSaveLeavesNoTempFile(t *testing.T) {
 	dir := t.TempDir()

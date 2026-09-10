@@ -39,7 +39,7 @@ func toggleLogWindow() {
 	} else {
 		logWin.Show()
 	}
-	tr.SyncMenuState(st.ShowLogOnStartup, logWin.IsVisible())
+	tr.SyncMenuState(logWin.IsVisible(), st.ShowLogOnStartup)
 }
 
 func main() {
@@ -115,7 +115,7 @@ func main() {
 			if saveErr := state.Save(statePath, st); saveErr != nil {
 				log.Printf("failed to save state: %v", saveErr)
 			}
-			tr.SyncMenuState(st.ShowLogOnStartup, logWin.IsVisible())
+			tr.SyncMenuState(logWin.IsVisible(), st.ShowLogOnStartup)
 		},
 		OnExit: func() {
 			if tr != nil {
@@ -134,7 +134,7 @@ func main() {
 	tr.SetTooltip("TinyProxyAPI")
 
 	// 建立初始勾选状态（NewTray 拿不到状态值，故在此设定一次）
-	tr.SyncMenuState(st.ShowLogOnStartup, logWin.IsVisible())
+	tr.SyncMenuState(logWin.IsVisible(), st.ShowLogOnStartup)
 
 	// 主窗口隐藏，双击托盘只切换日志窗口
 	tr.OnDoubleClick(toggleLogWindow)
