@@ -13,11 +13,6 @@ type Config struct {
 	AllowedKeys []string  `toml:"allowed_keys"`
 	Platforms  map[string]Platform
 	Models     map[string]string
-	UI         UIConfig
-}
-
-type UIConfig struct {
-	ShowLogOnStartup bool `toml:"show_log_on_startup"`
 }
 
 type ServerConfig struct {
@@ -45,12 +40,4 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	return &cfg, nil
-}
-
-func SaveConfig(path string, cfg *Config) error {
-	data, err := toml.Marshal(cfg)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0644)
 }
