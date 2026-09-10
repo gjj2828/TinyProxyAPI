@@ -8,6 +8,18 @@ import (
 	"github.com/lxn/walk"
 )
 
+// iconResourceID 是嵌入在可执行文件里的 GROUP_ICON 资源 ID。
+//
+// 该值是实测得来，不是推测。测量方式：go build 出 exe 后，用
+// tools/resid 解析其 PE 资源目录（.rsrc 节），在 RT_GROUP_ICON(=14) 下
+// 读到的 ID 即 2。同一份产物里 RT_MANIFEST=1，RT_ICON=3/4/5/6，
+// GROUP_ICON 的组目录（62 字节）恰好引用了这 4 个图像条目。
+// 重新生成 icon.ico / rsrc.syso 后可用 `go run ./tools/resid <exe>` 复核。
+//
+// walk.NewIconFromResourceId 经 Win32 LoadIcon/LoadImage 按 exe 自身模块句柄解析，
+// 该函数能解析图标组资源，所以这里用 GROUP_ICON 的 ID 而非单个 RT_ICON 的 ID。
+const iconResourceID = 2
+
 // Handlers 是托盘菜单各项的回调。tray 包只负责"显示菜单"和"报告菜单被点击"，
 // 一次点击意味着什么（读写状态、显示窗口、退出）由调用方在 main.go 里决定。
 type Handlers struct {
@@ -58,15 +70,30 @@ func NewTray(app *walk.Application, h Handlers) (*Tray, error) {
 	}
 	t.trayIcon = ni
 
-	// 图标：直接取系统图标，失败只记录警告（内嵌资源降级链由后续任务补齐）。
-	// 注意：系统图标取不到只是降级，不算失败，err 保持 nil 以免触发 defer 清理。
+	// 图标：三级降级，保证托盘区一定可见。
+	//  1. 内嵌资源 iconResourceID（rsrc 打进 exe 的 GROUP_ICON）
+	//  2. shell32 第 15 号系统图标兜底——只为不让托盘空白，不追求语义匹配
+	//  3. 再失败才记警告
+	// 注意：图标取不到只是降级，不算失败；err 必须保持 nil，否则 defer 会释放
+	// 已创建的 MainWindow / NotifyIcon，把失败路径和成功路径的清理搅在一起。
 	var icon *walk.Icon
-	icon, err = walk.NewIconFromSysDLL("shell32", 15)
+	icon, err = walk.NewIconFromResourceId(iconResourceID)
 	if err != nil {
-		log.Printf("warn: system icon unavailable, tray may be invisible: %v", err)
-		icon, err = nil, nil
-	} else if err := t.trayIcon.SetIcon(icon); err != nil {
+		log.Printf("warn: embedded icon resource %d unavailable, falling back to system icon: %v",
+			iconResourceID, err)
+		icon, err = walk.NewIconFromSysDLL("shell32", 15)
+		if err != nil {
+			log.Printf("warn: system icon also unavailable, tray may be invisible: %v", err)
+			icon, err = nil, nil
+		}
+	}
+	if err != nil {
 		return nil, err
+	}
+	if icon != nil {
+		if err := t.trayIcon.SetIcon(icon); err != nil {
+			return nil, err
+		}
 	}
 
 	// 必须显式调用 SetVisible(true) 才能显示托盘图标
