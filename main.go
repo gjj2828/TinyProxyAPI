@@ -47,15 +47,20 @@ func main() {
 	flag.Parse()
 	configPath = *configPathFlag
 
-	// exe 目录：从 PATH 启动时 os.Args[0] 可能只是文件名，用 os.Executable 取绝对路径
-	exe, _ := os.Executable()
-	exeDir := filepath.Dir(exe)
+	// exe 目录：从 PATH 启动时 os.Args[0] 可能只是文件名，用 os.Executable 取绝对路径。
+	// 失败时退回 configPath 所在目录——两者共用同一段逻辑，保证始终落在
+	// 一个确定存在的绝对路径上，而不是隐式解析到 os.Getwd()。
+	var baseDir string
+	if exe, exeErr := os.Executable(); exeErr == nil {
+		baseDir = filepath.Dir(exe)
+	} else {
+		log.Printf("warn: os.Executable failed, falling back to config path dir: %v", exeErr)
+		baseDir = filepath.Dir(configPath)
+	}
 
-	// 确保配置路径是绝对路径，优先使用 exe 所在目录
+	// 确保配置路径是绝对路径，优先使用 baseDir
 	if !filepath.IsAbs(configPath) {
-		if exeDir != "" {
-			configPath = filepath.Join(exeDir, configPath)
-		}
+		configPath = filepath.Join(baseDir, configPath)
 	}
 
 	var err error
@@ -65,10 +70,8 @@ func main() {
 		return
 	}
 
-	// 界面状态独立存于 exe 同目录，不碰 config.toml
-	if exeDir != "" {
-		statePath = filepath.Join(exeDir, "state.json")
-	}
+	// 界面状态独立存于同一目录，不碰 config.toml
+	statePath = filepath.Join(baseDir, "state.json")
 	st = state.Load(statePath)
 
 	// 创建 walk 应用

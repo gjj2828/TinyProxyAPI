@@ -29,6 +29,21 @@ type Tray struct {
 func NewTray(app *walk.Application, h Handlers) (*Tray, error) {
 	t := &Tray{app: app}
 
+	// 任一失败路径都走同一份清理：已创建的窗口/图标必须释放，否则残留隐藏的
+	// MainWindow 与 NotifyIcon（菜单一旦 Add 过就泄漏得更完整）。成功返回时 err==nil，
+	// defer 不会释放——所有权移交给调用方。
+	var err error
+	defer func() {
+		if err != nil {
+			if t.trayIcon != nil {
+				t.trayIcon.Dispose()
+			}
+			if t.mainWindow != nil {
+				t.mainWindow.Dispose()
+			}
+		}
+	}()
+
 	// Create a hidden main window as the host for NotifyIcon
 	mw, err := walk.NewMainWindow()
 	if err != nil {
@@ -43,14 +58,15 @@ func NewTray(app *walk.Application, h Handlers) (*Tray, error) {
 	}
 	t.trayIcon = ni
 
-	// 图标：直接取系统图标，失败只记录警告（内嵌资源降级链由后续任务补齐）
-	icon, err := walk.NewIconFromSysDLL("shell32", 15)
+	// 图标：直接取系统图标，失败只记录警告（内嵌资源降级链由后续任务补齐）。
+	// 注意：系统图标取不到只是降级，不算失败，err 保持 nil 以免触发 defer 清理。
+	var icon *walk.Icon
+	icon, err = walk.NewIconFromSysDLL("shell32", 15)
 	if err != nil {
 		log.Printf("warn: system icon unavailable, tray may be invisible: %v", err)
-	} else {
-		if err := t.trayIcon.SetIcon(icon); err != nil {
-			return nil, err
-		}
+		icon, err = nil, nil
+	} else if err := t.trayIcon.SetIcon(icon); err != nil {
+		return nil, err
 	}
 
 	// 必须显式调用 SetVisible(true) 才能显示托盘图标
