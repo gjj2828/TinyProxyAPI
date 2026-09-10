@@ -11,7 +11,7 @@ type LogWindow struct {
 	textEdit *walk.TextEdit
 }
 
-func ShowLogWindow(parent walk.MainWindow) (*LogWindow, error) {
+func ShowLogWindow() (*LogWindow, error) {
 	ml, err := walk.NewMainWindow()
 	if err != nil {
 		return nil, err

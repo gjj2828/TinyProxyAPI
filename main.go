@@ -4,67 +4,76 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/user/TinyProxyAPI/config"
 	"github.com/user/TinyProxyAPI/handler"
 	"github.com/user/TinyProxyAPI/matcher"
-	"github.com/user/TinyProxyAPI/signal"
+	"github.com/user/TinyProxyAPI/tray"
+
+	"github.com/lxn/walk"
+)
+
+var (
+	conf       *config.Config
+	tr         *tray.Tray
+	logWin     *tray.LogWindow
+	configPath string
 )
 
 func main() {
-	configPath := flag.String("config", "config.toml", "path to config file")
+	configPathFlag := flag.String("config", "config.toml", "path to config file")
 	flag.Parse()
+	configPath = *configPathFlag
 
-	cfg, err := config.LoadConfig(*configPath)
+	var err error
+	conf, err = config.LoadConfig(configPath)
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	// 创建一次 handler，热重载时只更新其内部的 matcher 指针，
-	// 不重建 handler（HTTP server 持有的 handler 实例保持不变）。
-	m := matcher.NewMatcher(cfg)
+	// 创建 walk 应用
+	app := walk.App()
+
+	// 创建日志窗口
+	logWin, err = tray.ShowLogWindow()
+	if err != nil {
+		log.Fatalf("failed to create log window: %v", err)
+	}
+
+	// 根据配置决定是否在启动时显示日志窗口
+	if conf.UI.ShowLogOnStartup {
+		logWin.Show()
+	}
+
+	// 创建托盘
+	iconPath := filepath.Join(filepath.Dir(os.Args[0]), "icon.ico")
+	tr, err = tray.NewTray(app, iconPath)
+	if err != nil {
+		log.Fatalf("failed to create tray: %v", err)
+	}
+	tr.SetTooltip("TinyProxyAPI")
+
+	// 初始化托盘菜单
+	tray.UpdateMenu(tr, logWin, conf, configPath)
+
+	tr.OnDoubleClick(func() {
+		// 主窗口隐藏，双击托盘只切换日志窗口
+		tray.ToggleLogWindow(logWin, tr, conf, configPath)
+	})
+
+	// 启动 HTTP 服务器
+	m := matcher.NewMatcher(conf)
 	h := handler.NewProxyHandler(m)
 
-	// 启动服务器
 	go func() {
-		log.Printf("server listening on %s", cfg.Server.Addr)
-		if err := http.ListenAndServe(cfg.Server.Addr, h); err != nil {
-			log.Fatalf("server error: %v", err)
+		log.Printf("server listening on %s", conf.Server.Addr)
+		if err := http.ListenAndServe(conf.Server.Addr, h); err != nil {
+			log.Printf("server error: %v", err)
 		}
 	}()
 
-	// 合并两种重载触发：SIGHUP（Linux/Mac）+ 配置文件变化（跨平台）。
-	// 任一来源触发都会通过同一个 channel 通知主循环重载。
-	reload := make(chan struct{}, 1)
-
-	hup := signal.Watch()
-	go func() {
-		for range hup {
-			reload <- struct{}{}
-		}
-	}()
-
-	if fileCh, err := signal.WatchConfig(*configPath); err != nil {
-		log.Printf("warn: file watcher disabled: %v", err)
-	} else {
-		go func() {
-			for range fileCh {
-				reload <- struct{}{}
-			}
-		}()
-	}
-
-	for range reload {
-		log.Println("reloading config...")
-		newCfg, err := config.LoadConfig(*configPath)
-		if err != nil {
-			log.Printf("failed to reload config: %v", err)
-			continue
-		}
-		// 复用现有 handler，仅原子替换其 matcher 指针。
-		// 这样 HTTP server 持有的 handler 永远不变，但 ServeHTTP
-		// 内部每次都会 Load 最新 matcher，新请求立即走新配置。
-		h.Update(matcher.NewMatcher(newCfg))
-		log.Println("config reloaded successfully")
-	}
+	// 运行消息循环
+	tr.MainWindow().Run()
 }
