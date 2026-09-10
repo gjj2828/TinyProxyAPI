@@ -8,6 +8,8 @@
 - **灵活路由** - 模型名全量匹配，通过 TOML 配置
 - **平台抽象** - 同一平台的多个模型共享 base_url 和 api_key
 - **热重载** - 改完 `config.toml` 保存即生效（基于 fsnotify 跨平台监听）；Linux/Mac 也可发 SIGHUP 触发
+- **系统托盘** - Windows 运行时隐藏控制台窗口，通过托盘图标管理程序（显示/隐藏日志窗口、退出）
+- **日志窗口** - 可查看程序运行日志，支持启动时自动显示
 
 ## 快速开始
 
@@ -31,6 +33,10 @@ platform = "openai"
 "gpt-4o" = "openai"
 "gpt-4o-mini" = "openai"
 "claude-sonnet-4-20250514" = "anthropic"
+
+[ui]
+# 启动时是否显示日志窗口（默认 false）
+show_log_on_startup = false
 ```
 
 > ⚠️ **TOML 坑**：`allowed_keys` 是顶层 key，必须放在**所有 `[table]` 之前**。
@@ -38,11 +44,15 @@ platform = "openai"
 
 ### 运行
 
-```bash
-go build -o TinyProxyAPI.exe .
-./TinyProxyAPI.exe -config config.toml
+```powershell
+# Windows 构建（隐藏控制台窗口）
+.\build.ps1
+
+# 运行
+.\TinyProxyAPI.exe -config config.toml
 ```
 
+> 或手动构建：`go build -ldflags="-H windowsgui" -o TinyProxyAPI.exe .`
 > Windows 上 `go build -o name .` 不会自动补 `.exe` 后缀，必须显式指定。
 
 ### 请求示例
@@ -63,6 +73,22 @@ curl -X POST http://localhost:3178/v1/responses \
 kill -HUP $(pidof TinyProxyAPI)
 ```
 
+## 系统托盘（Windows）
+
+程序启动后会在系统托盘显示图标，右键菜单提供以下功能：
+
+| 菜单项 | 功能 |
+|--------|------|
+| 显示日志 | 勾选后显示日志查看窗口 |
+| 日志启动时显示 | 勾选后下次启动自动显示日志窗口 |
+| 退出 | 关闭程序 |
+
+- 双击托盘图标可切换日志窗口显示状态
+- 点击最小化按钮会隐藏窗口到托盘
+- 托盘图标文件：`icon.ico`（需放在 exe 同目录，缺失时仅显示警告）
+
+> **注意**：需要自行准备 `icon.ico` 文件放在 exe 同目录，否则程序仍可运行但托盘图标会显示默认图标。
+
 ## 项目结构
 
 ```
@@ -77,12 +103,17 @@ TinyProxyAPI/
 ├── signal/
 │   ├── sighup.go     # SIGHUP 信号处理（Linux/Mac）
 │   └── watcher.go    # fsnotify 文件监听（跨平台）
+├── tray/
+│   ├── tray.go       # 系统托盘管理
+│   └── logwindow.go  # 日志窗口
 ├── config.toml       # 配置文件
-└── config.toml.example
+├── build.ps1         # Windows 构建脚本
+└── icon.ico         # 托盘图标（需自行准备）
 ```
 
 ## 依赖
 
-- Go 1.22+
+- Go 1.21+
 - github.com/pelletier/go-toml/v2
 - github.com/fsnotify/fsnotify
+- github.com/lxn/walk（系统托盘）
