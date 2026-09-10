@@ -14,5 +14,5 @@ TinyProxyAPI.exe
 .idea/
 .vscode/
 
-# 头脑风暴可视化伴侣的临时产物
-.superpowers/brainstorm/
+# 头脑风暴可视化伴侣与 SDD 执行过程的临时产物
+.superpowers/
