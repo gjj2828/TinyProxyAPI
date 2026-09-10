@@ -1,22 +1,14 @@
-# Task 2 Report: Matcher 添加 GetAllowedKeys 方法
+## Task 2 Report: 添加 UI 配置
 
-## Status: DONE
+**Status:** DONE
 
-## Commit
-- SHA: `2c27bd8`
-- Subject: `feat: add GetAllowedKeys method to Matcher`
+**Commits:**
+- `22430bc` - config: add [ui] section with show_log_on_startup
 
-## Changes
-- **Modified**: `matcher/matcher.go`
-- Added `GetAllowedKeys() []string` method to the `Matcher` struct that returns `m.cfg.AllowedKeys`
+**Changes:**
+- `config/loader.go`: 添加了 `UIConfig` struct 和 `Config.UI` 字段
+- `config.toml`: 添加了 `[ui]` section，包含 `show_log_on_startup = false`
 
-## Test Results
-```
-=== RUN   TestMatcher_Match
---- PASS: TestMatcher_Match (0.00s)
-PASS
-ok      github.com/user/TinyProxyAPI/matcher   0.690s
-```
+**Test summary:** 无测试需要运行（仅为结构体添加）
 
-## Summary
-Task 2 completed successfully. The `GetAllowedKeys` method was added to the Matcher struct, which delegates to `cfg.AllowedKeys`. All existing tests pass.
+**Concerns:** 无

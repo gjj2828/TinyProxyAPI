@@ -44,10 +44,12 @@ func NewTray(app *walk.Application, iconPath string) (*Tray, error) {
 
 	icon, err := walk.NewIconFromFile(iconPath)
 	if err != nil {
-		return nil, err
-	}
-	if err := t.trayIcon.SetIcon(icon); err != nil {
-		return nil, err
+		// icon.ico 不存在时使用默认图标，继续运行
+		log.Printf("warn: icon file not found, using default: %v", err)
+	} else {
+		if err := t.trayIcon.SetIcon(icon); err != nil {
+			return nil, err
+		}
 	}
 
 	return t, nil

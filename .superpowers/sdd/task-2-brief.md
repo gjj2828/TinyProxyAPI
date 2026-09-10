@@ -1,32 +1,45 @@
-### Task 2: Matcher 添加 GetAllowedKeys 方法
+## Task 2: 添加 UI 配置
 
 **Files:**
-- Modify: `matcher/matcher.go`
-- Test: `matcher/matcher_test.go`
+- Modify: `config/loader.go`
+- Modify: `config.toml`
 
 **Interfaces:**
-- Consumes: `*config.Config`
-- Produces: `GetAllowedKeys() []string`
+- Consumes: toml 配置文件
+- Produces: `Config.UI.ShowLogOnStartup` 字段（bool 类型，默认为 false）
 
-- [ ] **Step 1: 在 matcher.go 末尾添加 GetAllowedKeys 方法**
+- [ ] **Step 1: 在 Config 结构体中添加 UI 配置**
+
+在 `config/loader.go` 中添加：
 
 ```go
-// GetAllowedKeys 返回全局 API Key 白名单
-func (m *Matcher) GetAllowedKeys() []string {
-    return m.cfg.AllowedKeys
+type Config struct {
+    Server      ServerConfig
+    Default     DefaultConfig
+    AllowedKeys []string  `toml:"allowed_keys"`
+    Platforms  map[string]Platform
+    Models     map[string]string
+    UI         UIConfig
+}
+
+type UIConfig struct {
+    ShowLogOnStartup bool `toml:"show_log_on_startup"`
 }
 ```
 
-- [ ] **Step 2: 运行现有测试，确认不影响现有功能**
+- [ ] **Step 2: 在 config.toml 中添加 [ui] section**
 
-Run: `go test ./matcher/... -v`
-Expected: PASS
+```toml
+[ui]
+# 启动时是否显示日志窗口（默认 false）
+show_log_on_startup = false
+```
 
 - [ ] **Step 3: 提交**
 
 ```bash
-git add matcher/matcher.go
-git commit -m "feat: add GetAllowedKeys method to Matcher"
+git add config/loader.go config.toml
+git commit -m "config: add [ui] section with show_log_on_startup"
 ```
 
 ---

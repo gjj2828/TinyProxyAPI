@@ -10,6 +10,7 @@ import (
 	"github.com/user/TinyProxyAPI/config"
 	"github.com/user/TinyProxyAPI/handler"
 	"github.com/user/TinyProxyAPI/matcher"
+	"github.com/user/TinyProxyAPI/signal"
 	"github.com/user/TinyProxyAPI/tray"
 
 	"github.com/lxn/walk"
@@ -71,6 +72,52 @@ func main() {
 		log.Printf("server listening on %s", conf.Server.Addr)
 		if err := http.ListenAndServe(conf.Server.Addr, h); err != nil {
 			log.Printf("server error: %v", err)
+		}
+	}()
+
+	// 热重载：合并两种重载触发 SIGHUP（Linux/Mac）+ 配置文件变化（跨平台）。
+	// 任一来源触发都会通过同一个 channel 通知重载逻辑。
+	reload := make(chan struct{}, 1)
+
+	hup := signal.Watch()
+	go func() {
+		for range hup {
+			select {
+			case reload <- struct{}{}:
+			default:
+			}
+		}
+	}()
+
+	if fileCh, err := signal.WatchConfig(configPath); err != nil {
+		log.Printf("warn: file watcher disabled: %v", err)
+	} else {
+		go func() {
+			for range fileCh {
+				select {
+				case reload <- struct{}{}:
+				default:
+				}
+			}
+		}()
+	}
+
+	// 处理热重载信号
+	go func() {
+		for range reload {
+			log.Println("reloading config...")
+			newCfg, err := config.LoadConfig(configPath)
+			if err != nil {
+				log.Printf("failed to reload config: %v", err)
+				continue
+			}
+			// 复用现有 handler，仅原子替换其 matcher 指针。
+			// 这样 HTTP server 持有的 handler 永远不变，但 ServeHTTP
+			// 内部每次都会 Load 最新 matcher，新请求立即走新配置。
+			h.Update(matcher.NewMatcher(newCfg))
+			conf = newCfg
+			tray.UpdateMenu(tr, logWin, conf, configPath)
+			log.Println("config reloaded successfully")
 		}
 	}()
 

@@ -1,34 +1,18 @@
-### Task 1: ConfigLoader 支持 AllowedKeys
+## Task 1: 添加 walk 依赖
 
 **Files:**
-- Modify: `config/loader.go:10-15`
-- Test: `config/loader_test.go`
+- Modify: `go.mod`
 
-**Interfaces:**
-- Produces: `Config.AllowedKeys []string`
+- [ ] **Step 1: 添加 walk 依赖**
 
-- [ ] **Step 1: 修改 Config 结构体，添加 AllowedKeys 字段**
+Run: `go get github.com/lxn/walk@latest`
+Expected: go.mod 添加 `github.com/lxn/walk v0.8.0` 和 `github.com/lxn/win v0.21.0`
 
-```go
-type Config struct {
-    Server     ServerConfig
-    Default    DefaultConfig
-    AllowedKeys []string      // 新增
-    Platforms  map[string]Platform
-    Models     map[string]string
-}
-```
-
-- [ ] **Step 2: 运行现有测试，确认不影响现有功能**
-
-Run: `go test ./config/... -v`
-Expected: PASS
-
-- [ ] **Step 3: 提交**
+- [ ] **Step 2: 提交**
 
 ```bash
-git add config/loader.go
-git commit -m "feat: add AllowedKeys field to Config"
+git add go.mod go.sum
+git commit -m "deps: add walk for system tray support"
 ```
 
 ---

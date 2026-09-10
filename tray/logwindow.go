@@ -2,6 +2,8 @@
 package tray
 
 import (
+	"time"
+
 	"github.com/lxn/walk"
 	"github.com/lxn/win"
 )
@@ -44,8 +46,6 @@ func ShowLogWindow() (*LogWindow, error) {
 	}
 	te.SetReadOnly(true)
 
-	ml.SetSize(walk.Size{Width: 600, Height: 400})
-
 	lw := &LogWindow{
 		MainWindow: ml,
 		textEdit:   te,
@@ -55,6 +55,20 @@ func ShowLogWindow() (*LogWindow, error) {
 		*cancel = true
 		lw.Hide()
 	})
+
+	// 最小化时隐藏窗口（仅在托盘显示）
+	// 定期检测窗口是否最小化，如果是则隐藏
+	if hwnd != 0 {
+		go func() {
+			ticker := time.NewTicker(500 * time.Millisecond)
+			defer ticker.Stop()
+			for range ticker.C {
+				if win.IsIconic(hwnd) && lw.Visible() {
+					lw.Hide()
+				}
+			}
+		}()
+	}
 
 	return lw, nil
 }

@@ -1,55 +1,35 @@
-# Task 5: SIGHUP 热重载 - 报告
+# Task 5 Report
 
-## 完成状态
+## Status
+DONE
 
-**Status:** DONE
+## Commits
+- `8aa74aa` - feat: convert to GUI app with system tray support
 
-## 实现内容
+## Changes Made
 
-### 1. 创建的文件
+### main.go
+- 重写为 walk GUI 程序入口
+- 使用 `walk.App()` 获取 Application 实例
+- 集成托盘和日志窗口
+- 通过 `tray.UpdateMenu()`, `tray.ToggleLogWindow()`, `tray.ToggleStartupSetting()`, `tray.CleanupAndExit()` 管理托盘菜单行为
+- 使用 `tr.MainWindow().Run()` 启动消息循环
 
-- `D:/Documents/Projects/TinyProxyAPI/signal/sighup.go` - Watch 函数实现
-- `D:/Documents/Projects/TinyProxyAPI/signal/sighup_test.go` - 单元测试
+### config/loader.go
+- 添加 `SaveConfig(path string, cfg *Config) error` 函数
+- 使用 toml.Marshal 序列化配置并写入文件
 
-### 2. Watch 函数实现
+### tray/tray.go
+- 添加 `MainWindow()` 方法返回隐藏的主窗口
+- 添加 `UpdateMenu()`, `ToggleLogWindow()`, `ToggleStartupSetting()`, `CleanupAndExit()` 辅助函数
+- 添加 config 包导入
 
-```go
-func Watch() chan struct{} {
-    hup := make(chan struct{}, 1)
-    sigs := make(chan os.Signal, 1)
-    signal.Notify(sigs, syscall.SIGHUP)
+### tray/logwindow.go
+- 修改 `ShowLogWindow()` 移除不需要的 parent 参数
 
-    go func() {
-        <-sigs
-        hup <- struct{}{}
-    }()
+## Test Summary
+- `go build ./...` 编译成功，无错误
 
-    return hup
-}
-```
-
-功能：
-- 创建带缓冲的 `chan struct{}` 用于通知
-- 监听 `syscall.SIGHUP` 信号
-- goroutine 等待信号并通过 channel 通知调用方
-
-### 3. 测试结果
-
-```
-=== RUN   TestWatch
---- PASS: TestWatch (0.10s)
-PASS
-```
-
-测试通过，验证了 channel 创建正常。
-
-## 提交信息
-
-- **Commit:** 48f7825
-- **Subject:** feat: add SIGHUP watcher for hot reload
-
-## 验收标准检查
-
-- [x] signal/sighup.go 存在，Watch 函数正确实现
-- [x] signal/sighup_test.go 测试通过
-- [x] 提交已创建
+## Concerns
+- 双击托盘图标会切换日志窗口显示/隐藏（按照需求主窗口是隐藏的）
+- 托盘图标路径使用 `filepath.Join(filepath.Dir(os.Args[0]), "icon.ico")` 指向 exe 同目录下

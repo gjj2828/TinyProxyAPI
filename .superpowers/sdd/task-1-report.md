@@ -1,38 +1,14 @@
-# Task 1 Report: ConfigLoader 支持 AllowedKeys
+## Task 1 Report: 添加 walk 依赖
 
-## Status: DONE
+**Status:** DONE
 
-## Commit
+**Commits:**
+- `e5dbf0e` - deps: add walk for system tray support
 
-- **SHA:** b4bea33
-- **Subject:** feat: add AllowedKeys field to Config
+**Test summary:**
+- `go get github.com/lxn/walk@latest` 执行成功
+- 依赖已添加到 go.mod 和 go.sum
+- git commit 成功
 
-## Changes
-
-Added `AllowedKeys []string` field to the `Config` struct in `config/loader.go`:
-
-```go
-type Config struct {
-	Server     ServerConfig
-	Default    DefaultConfig
-	AllowedKeys []string
-	Platforms  map[string]Platform
-	Models     map[string]string
-}
-```
-
-## Test Results
-
-```
-=== RUN   TestLoadConfig
---- PASS: TestLoadConfig (0.00s)
-PASS
-ok  	github.com/user/TinyProxyAPI/config	0.691s
-```
-
-All existing tests pass.
-
-## Self-Review
-
-- [x] Added `AllowedKeys []string` to Config struct as specified
-- [x] Existing tests still pass
+**Concerns:**
+- 实际安装的版本是 `v0.0.0-20210112085537-c389da54e794` 而非 brief 中预期的 `v0.8.0`。这是因为 `@latest` 获取的是最新的提交而非最新的正式 release 标签。如果需要特定版本 `v0.8.0`，可改用 `go get github.com/lxn/walk@v0.8.0`。
