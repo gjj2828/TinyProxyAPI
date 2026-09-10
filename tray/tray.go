@@ -3,7 +3,6 @@ package tray
 
 import (
 	"log"
-	"time"
 
 	"github.com/lxn/walk"
 )
@@ -53,6 +52,7 @@ func loadAppIcon() *walk.Icon {
 // 一次点击意味着什么（读写状态、显示窗口、退出）由调用方在 main.go 里决定。
 type Handlers struct {
 	OnToggleLog     func()
+	OnLeftClick     func()
 	OnToggleStartup func()
 	OnExit          func()
 }
@@ -63,8 +63,6 @@ type Tray struct {
 	mainWindow    *walk.MainWindow
 	actShowLog    *walk.Action
 	actStartup    *walk.Action
-	onDoubleClick func()
-	lastClick     time.Time
 }
 
 func NewTray(app *walk.Application, h Handlers) (*Tray, error) {
@@ -162,17 +160,12 @@ func (t *Tray) SyncMenuState(showLog, startup bool) {
 	t.actStartup.SetChecked(startup)
 }
 
-func (t *Tray) OnDoubleClick(handler func()) {
-	t.onDoubleClick = handler
+// OnLeftClick 注册左键单击/双击处理函数（两者等价）。
+// 每次左键按下都触发 handler，不做单双击计时区分。
+func (t *Tray) OnLeftClick(handler func()) {
 	t.trayIcon.MouseDown().Attach(func(x, y int, button walk.MouseButton) {
-		if button == walk.LeftButton {
-			now := time.Now()
-			if now.Sub(t.lastClick) < 300*time.Millisecond {
-				if t.onDoubleClick != nil {
-					t.onDoubleClick()
-				}
-			}
-			t.lastClick = now
+		if button == walk.LeftButton && handler != nil {
+			handler()
 		}
 	})
 }

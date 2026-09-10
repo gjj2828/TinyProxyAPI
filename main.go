@@ -146,7 +146,7 @@ func main() {
 	})
 
 	// 主窗口隐藏，双击托盘只切换日志窗口
-	tr.OnDoubleClick(toggleLogWindow)
+	tr.OnLeftClick(toggleLogWindow)
 
 	// 启动 HTTP 服务器
 	m := matcher.NewMatcher(conf)
