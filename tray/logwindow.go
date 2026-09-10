@@ -22,6 +22,15 @@ func ShowLogWindow() (*LogWindow, error) {
 	ml.SetTitle("TinyProxyAPI - 日志")
 	ml.SetWidth(600)
 	ml.SetHeight(400)
+	// 窗口图标必须显式设置：walk 的 MainWindow 创建流程不发 WM_SETICON，
+	// WM_GETICON 保持 NULL 时标题栏左上角会退回 Windows 的通用窗口图标。
+	// 与托盘共用 loadAppIcon，保证两处显示同一个图标。
+	if appIcon := loadAppIcon(); appIcon != nil {
+		if err := ml.SetIcon(appIcon); err != nil {
+			ml.Dispose()
+			return nil, err
+		}
+	}
 	ml.SetLayout(walk.NewVBoxLayout())
 
 	// Center window on screen using win32 API

@@ -25,6 +25,30 @@ import (
 // 系统会自行挑最合适的那一档尺寸。
 const iconResourceID = 2
 
+// loadAppIcon 取 exe 内嵌的应用图标，失败时逐级降级，永不返回错误。
+//
+//  1. 内嵌资源 iconResourceID（rsrc 打进 exe 的 GROUP_ICON）
+//  2. shell32 第 15 号系统图标兜底——只为不留空白，不追求语义匹配
+//  3. 再失败返回 nil，由调用方决定"无图标"如何呈现
+//
+// 返回 nil 不代表失败。图标取不到只是降级，不能把它当错误抛出去：否则 NewTray
+// 里的 defer 会释放已创建的 MainWindow / NotifyIcon，把降级路径和失败路径的清理
+// 搅在一起。托盘和日志窗口共用这一条链路，保证两处显示同一个图标。
+func loadAppIcon() *walk.Icon {
+	icon, err := walk.NewIconFromResourceId(iconResourceID)
+	if err != nil {
+		log.Printf("warn: embedded icon resource %d unavailable, falling back to system icon: %v",
+			iconResourceID, err)
+		fb, fbErr := walk.NewIconFromSysDLL("shell32", 15)
+		if fbErr == nil {
+			return fb
+		}
+		log.Printf("warn: system icon also unavailable, UI may show a generic icon: %v", fbErr)
+		return nil
+	}
+	return icon
+}
+
 // Handlers 是托盘菜单各项的回调。tray 包只负责"显示菜单"和"报告菜单被点击"，
 // 一次点击意味着什么（读写状态、显示窗口、退出）由调用方在 main.go 里决定。
 type Handlers struct {
@@ -75,28 +99,11 @@ func NewTray(app *walk.Application, h Handlers) (*Tray, error) {
 	}
 	t.trayIcon = ni
 
-	// 图标：三级降级，保证托盘区一定可见。
-	//  1. 内嵌资源 iconResourceID（rsrc 打进 exe 的 GROUP_ICON）
-	//  2. shell32 第 15 号系统图标兜底——只为不让托盘空白，不追求语义匹配
-	//  3. 再失败才记警告
-	// 注意：图标取不到只是降级，不算失败；err 必须保持 nil，否则 defer 会释放
-	// 已创建的 MainWindow / NotifyIcon，把失败路径和成功路径的清理搅在一起。
-	var icon *walk.Icon
-	icon, err = walk.NewIconFromResourceId(iconResourceID)
-	if err != nil {
-		log.Printf("warn: embedded icon resource %d unavailable, falling back to system icon: %v",
-			iconResourceID, err)
-		icon, err = walk.NewIconFromSysDLL("shell32", 15)
-		if err != nil {
-			log.Printf("warn: system icon also unavailable, tray may be invisible: %v", err)
-			icon, err = nil, nil
-		}
-	}
-	if err != nil {
-		return nil, err
-	}
-	if icon != nil {
-		if err := t.trayIcon.SetIcon(icon); err != nil {
+	// 图标取不到只是降级，loadAppIcon 已经把三级降级和警告日志收在内部；
+	// 这里不需要给 err 赋值，否则会触发上面 defer 的清理，误伤已创建的
+	// MainWindow / NotifyIcon。
+	if appIcon := loadAppIcon(); appIcon != nil {
+		if err := t.trayIcon.SetIcon(appIcon); err != nil {
 			return nil, err
 		}
 	}
