@@ -1,6 +1,9 @@
 # 配置文件（包含 API key）
 config.toml
 
+# 程序生成的界面状态（与 config.toml 分开，避免回写破坏配置格式）
+state.json
+
 # 构建产物
 TinyProxyAPI
 TinyProxyAPI.exe

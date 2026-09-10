@@ -33,10 +33,6 @@ platform = "openai"
 "gpt-4o" = "openai"
 "gpt-4o-mini" = "openai"
 "claude-sonnet-4-20250514" = "anthropic"
-
-[ui]
-# 启动时是否显示日志窗口（默认 false）
-show_log_on_startup = false
 ```
 
 > ⚠️ **TOML 坑**：`allowed_keys` 是顶层 key，必须放在**所有 `[table]` 之前**。
@@ -85,30 +81,54 @@ kill -HUP $(pidof TinyProxyAPI)
 
 - 双击托盘图标可切换日志窗口显示状态
 - 点击最小化按钮会隐藏窗口到托盘
-- 托盘图标文件：`icon.ico`（需放在 exe 同目录，缺失时仅显示警告）
 
-> **注意**：需要自行准备 `icon.ico` 文件放在 exe 同目录，否则程序仍可运行但托盘图标会显示默认图标。
+### 界面状态
+
+「日志启动时显示」的设置**不由 `config.toml` 管理**，而是由托盘菜单控制，保存在 exe 同目录的 `state.json` 中，默认值为启动时显示。
+
+`config.toml` 始终只读——程序不会写回该文件，你的注释和格式不会被改动。
+
+### 重新生成图标
+
+托盘图标由 `tools/genicon` 生成并嵌入 `rsrc.syso`，单文件分发即可，无需准备外部图标文件：
+
+```bash
+go run ./tools/genicon
+rsrc -manifest TinyProxyAPI.exe.manifest -ico icon.ico -o rsrc.syso
+```
+
+生成产物 `icon.ico` 与 `rsrc.syso` 需要一并提交。
+
+> **注意**：`rsrc` 分配的 GROUP_ICON 资源 ID 取决于 ICO 内的图像条目数，不是固定值。改动 `tools/genicon/` 后如果条目数变化，必须更新 `tray/tray.go` 里的 `iconResourceID` 常量——构建 exe 后用 `go run ./tools/resid TinyProxyAPI.exe` 读出实际 ID 再核对。
 
 ## 项目结构
 
 ```
 TinyProxyAPI/
-├── main.go           # 程序入口
+├── main.go            # 程序入口（托盘编排、状态管理）
 ├── config/
-│   └── loader.go     # 配置加载
+│   └── loader.go      # 配置加载（只读，不写回 config.toml）
+├── state/
+│   └── state.go       # 界面状态读写（state.json）
 ├── handler/
-│   └── proxy.go      # 请求处理
+│   └── proxy.go       # 请求处理
 ├── matcher/
-│   └── matcher.go    # 路由匹配
+│   └── matcher.go     # 路由匹配
 ├── signal/
-│   ├── sighup.go     # SIGHUP 信号处理（Linux/Mac）
-│   └── watcher.go    # fsnotify 文件监听（跨平台）
+│   ├── sighup.go      # SIGHUP 信号处理（Linux/Mac）
+│   └── watcher.go     # fsnotify 文件监听（跨平台）
 ├── tray/
-│   ├── tray.go       # 系统托盘管理
-│   └── logwindow.go  # 日志窗口
-├── config.toml       # 配置文件
-├── build.ps1         # Windows 构建脚本
-└── icon.ico         # 托盘图标（需自行准备）
+│   ├── tray.go        # 系统托盘管理
+│   └── logwindow.go   # 日志窗口
+├── tools/
+│   ├── genicon/       # 生成 icon.ico
+│   └── resid/         # 从 exe 读出图标资源 ID
+├── config.toml        # 配置文件（含密钥，不入库）
+├── config.toml.example  # 配置模板
+├── icon.ico           # 图标资源，已嵌入 rsrc.syso
+├── rsrc.syso          # 内嵌资源（图标 + manifest），构建时自动链接
+├── build.ps1          # Windows 构建脚本
+└── TinyProxyAPI.exe.manifest # 公共控件 manifest
 ```
 
 ## 依赖
