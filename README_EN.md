@@ -8,7 +8,8 @@
 - **Flexible Routing** - Full model name matching via TOML configuration
 - **Platform Abstraction** - Multiple models on the same platform share base_url and api_key
 - **Hot Reload** - Changes to `config.toml` take effect on save (via cross-platform fsnotify); Linux/Mac can also trigger with SIGHUP
-- **System Tray** - On Windows, hides the console window and manages the program via tray icon (show/hide log window, exit)
+- **Auto-Initialization** - Automatically creates a default `config.toml` if missing and opens it in your editor
+- **System Tray** - On Windows, hides the console window and manages the program via tray icon (show/hide log window, open config file, exit)
 - **Log Window** - View program runtime logs, with optional auto-show on startup
 
 ## Quick Start
@@ -90,6 +91,7 @@ After startup, an icon appears in the system tray. Right-click menu provides:
 |-----------|----------|
 | Show Log | Check to show the log viewer window |
 | Show log on startup | Check to auto-show log window on next startup |
+| Open Config File | Opens `config.toml` using the associated system editor (fallback to Notepad) |
 | Exit | Close the program |
 
 - Left-click the tray icon to toggle log window visibility (replaces the old double-click behavior)
@@ -130,7 +132,8 @@ Both `icon.ico` and `rsrc.syso` need to be committed.
 TinyProxyAPI/
 ├── main.go            # Program entry (tray orchestration, state management)
 ├── config/
-│   └── loader.go      # Config loading (read-only, never writes back to config.toml)
+│   ├── loader.go      # Config loading (read-only, never writes back to config.toml)
+│   └── template.go    # Default config template and auto-initialization
 ├── state/
 │   └── state.go       # UI state read/write (state.json)
 ├── handler/

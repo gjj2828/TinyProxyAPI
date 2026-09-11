@@ -46,8 +46,22 @@ func showError(title string, msg string) {
 
 // openConfigFile 使用 Windows 关联程序打开配置文件；若无关联程序则兜底使用记事本 notepad.exe。
 func openConfigFile(path string) {
+	fallbackNotepad := func() {
+		cmd := exec.Command("notepad.exe", path)
+		if err := cmd.Start(); err != nil {
+			log.Printf("warn: failed to start notepad for config: %v", err)
+		} else {
+			_ = cmd.Process.Release()
+		}
+	}
+
 	verbPtr, _ := syscall.UTF16PtrFromString("open")
-	filePtr, _ := syscall.UTF16PtrFromString(path)
+	filePtr, err := syscall.UTF16PtrFromString(path)
+	if err != nil {
+		log.Printf("warn: invalid config file path for ShellExecute: %v", err)
+		fallbackNotepad()
+		return
+	}
 
 	// ShellExecute 返回 HINSTANCE。在 Windows API 中，值 <= 32 表示失败（如 31=SE_ERR_NOASSOC）。
 	// 注：lxn/win 的 ShellExecute 返回 bool (ret != 0)，无法按 <= 32 判断 SE_ERR_NOASSOC 等错误码，
@@ -62,10 +76,7 @@ func openConfigFile(path string) {
 	)
 	if ret <= 32 {
 		log.Printf("warn: ShellExecute failed (%d), falling back to notepad: %s", ret, path)
-		cmd := exec.Command("notepad.exe", path)
-		if err := cmd.Start(); err != nil {
-			log.Printf("warn: failed to start notepad for config: %v", err)
-		}
+		fallbackNotepad()
 	}
 }
 

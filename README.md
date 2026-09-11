@@ -8,7 +8,8 @@
 - **灵活路由** - 模型名全量匹配，通过 TOML 配置
 - **平台抽象** - 同一平台的多个模型共享 base_url 和 api_key
 - **热重载** - 改完 `config.toml` 保存即生效（基于 fsnotify 跨平台监听）；Linux/Mac 也可发 SIGHUP 触发
-- **系统托盘** - Windows 运行时隐藏控制台窗口，通过托盘图标管理程序（显示/隐藏日志窗口、退出）
+- **自动初始化** - 未检测到配置文件时自动生成默认 `config.toml`，并调起关联编辑器引导配置
+- **系统托盘** - Windows 运行时隐藏控制台窗口，通过托盘图标管理程序（显示/隐藏日志窗口、打开配置文件、退出）
 - **日志窗口** - 可查看程序运行日志，支持启动时自动显示
 
 ## 快速开始
@@ -90,6 +91,7 @@ kill -HUP $(pidof TinyProxyAPI)
 |--------|------|
 | 显示日志 | 勾选后显示日志查看窗口 |
 | 日志启动时显示 | 勾选后下次启动自动显示日志窗口 |
+| 打开配置文件 | 使用系统关联程序（或记事本兜底）打开配置文件 |
 | 退出 | 关闭程序 |
 
 - 单击托盘图标可切换日志窗口显示状态（替代了旧版的双击）
@@ -130,7 +132,8 @@ rsrc -manifest TinyProxyAPI.exe.manifest -ico icon.ico -o rsrc.syso
 TinyProxyAPI/
 ├── main.go            # 程序入口（托盘编排、状态管理）
 ├── config/
-│   └── loader.go      # 配置加载（只读，不写回 config.toml）
+│   ├── loader.go      # 配置加载（只读，不写回 config.toml）
+│   └── template.go    # 默认配置模板与初始化创建
 ├── state/
 │   └── state.go       # 界面状态读写（state.json）
 ├── handler/
