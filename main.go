@@ -107,8 +107,12 @@ func main() {
 		return
 	}
 
-	// 界面状态独立存于同一目录，不碰 config.toml
-	statePath = filepath.Join(baseDir, "state.json")
+	// 界面状态独立存于用户目录 ~/.tinyproxyapi/state.json，不碰 config.toml
+	var stateErr error
+	statePath, stateErr = state.DefaultPath()
+	if stateErr != nil {
+		log.Printf("warn: failed to resolve state path: %v", stateErr)
+	}
 	st = state.Load(statePath)
 
 	// 创建 walk 应用
