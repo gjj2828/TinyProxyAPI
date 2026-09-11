@@ -49,3 +49,8 @@ func (m *Matcher) GetAllowedKeys() []string {
 func (m *Matcher) GetDefaultPlatform() string {
 	return m.cfg.Default.Platform
 }
+
+// GetModels 返回所有配置的模型映射 (modelID -> platformID)
+func (m *Matcher) GetModels() map[string]string {
+	return m.cfg.Models
+}

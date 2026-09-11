@@ -38,6 +38,12 @@ func (h *ProxyHandler) currentMatcher() *matcher.Matcher {
 }
 
 func (h *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Handle GET /v1/models
+	if r.Method == http.MethodGet && r.URL.Path == "/v1/models" {
+		h.handleListModels(w, r)
+		return
+	}
+
 	// 仅处理 POST /v1/responses
 	if r.Method != http.MethodPost || r.URL.Path != "/v1/responses" {
 		http.NotFound(w, r)
@@ -149,4 +155,71 @@ func (h *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	proxy.ServeHTTP(w, r)
+}
+
+// handleListModels 处理 GET /v1/models 请求，返回 OpenAI 兼容的模型列表
+func (h *ProxyHandler) handleListModels(w http.ResponseWriter, r *http.Request) {
+	m := h.currentMatcher()
+
+	// API Key 验证
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": map[string]string{
+				"message": "missing authorization header",
+				"type":    "invalid_request_error",
+			},
+		})
+		return
+	}
+	authKey := ""
+	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		authKey = authHeader[7:]
+	}
+	valid := false
+	for _, key := range m.GetAllowedKeys() {
+		if key == authKey {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": map[string]string{
+				"message": "invalid api key",
+				"type":    "invalid_request_error",
+			},
+		})
+		return
+	}
+
+	// 构建模型列表
+	models := m.GetModels()
+	data := make([]struct {
+		ID      string `json:"id"`
+		Object  string `json:"object"`
+		Created int64  `json:"created"`
+		OwnedBy string `json:"owned_by"`
+	}, 0, len(models))
+
+	for modelID, platformID := range models {
+		data = append(data, struct {
+			ID      string `json:"id"`
+			Object  string `json:"object"`
+			Created int64  `json:"created"`
+			OwnedBy string `json:"owned_by"`
+		}{
+			ID:      modelID,
+			Object:  "model",
+			Created: 1788944949,
+			OwnedBy: platformID,
+		})
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"object": "list",
+		"data":   data,
+	})
 }

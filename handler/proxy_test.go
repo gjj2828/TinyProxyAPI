@@ -3,6 +3,7 @@ package handler
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -64,5 +65,75 @@ func TestProxyHandler_ServeHTTP(t *testing.T) {
 
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("expected 401 for invalid key, got %d", w.Code)
+	}
+}
+
+func TestProxyHandler_ListModels(t *testing.T) {
+	cfg := &config.Config{
+		AllowedKeys: []string{"valid-key-001"},
+		Platforms: map[string]config.Platform{
+			"openai":    {BaseURL: "https://api.openai.com", APIKey: "sk-test"},
+			"anthropic": {BaseURL: "https://api.anthropic.com", APIKey: "sk-test"},
+		},
+		Models: map[string]string{
+			"gpt-4o":                 "openai",
+			"gpt-4o-mini":            "openai",
+			"claude-sonnet-4-20250514": "anthropic",
+		},
+	}
+	m := matcher.NewMatcher(cfg)
+	h := NewProxyHandler(m)
+
+	// Test 401 for missing Authorization header
+	req := httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 for missing auth, got %d", w.Code)
+	}
+
+	// Test 401 for invalid API key
+	req = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	req.Header.Set("Authorization", "Bearer invalid-key")
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 for invalid key, got %d", w.Code)
+	}
+
+	// Test 200 with valid key
+	req = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	req.Header.Set("Authorization", "Bearer valid-key-001")
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+
+	// Verify response body structure
+	var resp struct {
+		Object string `json:"object"`
+		Data   []struct {
+			ID      string `json:"id"`
+			Object  string `json:"object"`
+			Created int64  `json:"created"`
+			OwnedBy string `json:"owned_by"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.Object != "list" {
+		t.Errorf("expected object='list', got '%s'", resp.Object)
+	}
+	if len(resp.Data) != 3 {
+		t.Errorf("expected 3 models, got %d", len(resp.Data))
+	}
+	// Verify first model
+	if resp.Data[0].ID != "gpt-4o" || resp.Data[0].OwnedBy != "openai" {
+		t.Errorf("unexpected first model: %+v", resp.Data[0])
+	}
+	if resp.Data[0].Created != 1788944949 {
+		t.Errorf("expected created=1788944949, got %d", resp.Data[0].Created)
 	}
 }
