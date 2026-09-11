@@ -44,17 +44,39 @@ func Load(path string) *State {
 	return s
 }
 
+// DefaultPath 返回状态文件的默认存储路径 ~/.tinyproxyapi/state.json。
+// 若获取用户家目录失败，将优雅回退至可执行文件所在目录或系统临时目录。
+func DefaultPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err == nil && home != "" {
+		return filepath.Join(home, ".tinyproxyapi", "state.json"), nil
+	}
+
+	// 降级策略：尝试可执行文件所在目录
+	if exe, exeErr := os.Executable(); exeErr == nil {
+		return filepath.Join(filepath.Dir(exe), "state.json"), nil
+	}
+
+	// 最终兜底：系统临时目录
+	return filepath.Join(os.TempDir(), ".tinyproxyapi", "state.json"), nil
+}
+
 // Save 以原子方式写入状态文件。
 //
-// 先写同目录下的临时文件，再 Rename 覆盖目标，保证写入中途崩溃不会留下
-// 被截断的 JSON。成功后不留下任何临时文件。
+// 先确保父目录存在，然后写同目录下的临时文件，再 Rename 覆盖目标，
+// 保证写入中途崩溃不会留下被截断的 JSON。成功后不留下任何临时文件。
 func Save(path string, s *State) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+
 	data, err := json.Marshal(s)
 	if err != nil {
 		return err
 	}
 
-	tmp := filepath.Join(filepath.Dir(path), filepath.Base(path)+".tmp")
+	tmp := filepath.Join(dir, filepath.Base(path)+".tmp")
 	if err := os.WriteFile(tmp, data, 0644); err != nil {
 		return err
 	}

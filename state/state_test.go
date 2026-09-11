@@ -115,3 +115,35 @@ func TestSaveLeavesNoTempFile(t *testing.T) {
 		}
 	}
 }
+
+// 验证 DefaultPath 返回非空绝对路径且以 .tinyproxyapi/state.json 结尾。
+func TestDefaultPath(t *testing.T) {
+	p, err := DefaultPath()
+	if err != nil {
+		t.Fatalf("DefaultPath 返回错误: %v", err)
+	}
+	if !filepath.IsAbs(p) {
+		t.Errorf("DefaultPath 应返回绝对路径，实际为: %s", p)
+	}
+
+	expectedSuffix := filepath.Join(".tinyproxyapi", "state.json")
+	if !filepath.IsAbs(p) || len(p) < len(expectedSuffix) || p[len(p)-len(expectedSuffix):] != expectedSuffix {
+		t.Errorf("DefaultPath 路径应以 %s 结尾，实际为: %s", expectedSuffix, p)
+	}
+}
+
+// 验证 Save 在父目录尚不存在时能自动创建父目录并成功写入。
+func TestSave_CreatesDirectory(t *testing.T) {
+	dir := t.TempDir()
+	nestedPath := filepath.Join(dir, ".tinyproxyapi", "state.json")
+
+	if err := Save(nestedPath, &State{ShowLogOnStartup: false}); err != nil {
+		t.Fatalf("Save 自动创建目录失败: %v", err)
+	}
+
+	loaded := Load(nestedPath)
+	if loaded.ShowLogOnStartup {
+		t.Errorf("从新创建目录加载状态失败，期望 false，实际 %v", loaded.ShowLogOnStartup)
+	}
+}
+
