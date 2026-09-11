@@ -107,7 +107,7 @@ The log window displays server startup messages, configuration reloads, and runt
 
 ### UI State
 
-The "Show log on startup" setting is **not managed by `config.toml`**, but controlled via the tray menu and saved in `state.json` in the same directory as the exe, defaulting to show on startup.
+The "Show log on startup" setting is **not managed by `config.toml`**, but controlled via the tray menu and saved in `~/.tinyproxyapi/state.json` in the user's home directory, defaulting to show on startup.
 
 `config.toml` is always read-only — the program never writes back to it, your comments and formatting are preserved.
 

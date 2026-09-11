@@ -107,7 +107,7 @@ kill -HUP $(pidof TinyProxyAPI)
 
 ### 界面状态
 
-「日志启动时显示」的设置**不由 `config.toml` 管理**，而是由托盘菜单控制，保存在 exe 同目录的 `state.json` 中，默认值为启动时显示。
+「日志启动时显示」的设置**不由 `config.toml` 管理**，而是由托盘菜单控制，保存在用户目录的 `~/.tinyproxyapi/state.json` 中，默认值为启动时显示。
 
 `config.toml` 始终只读——程序不会写回该文件，你的注释和格式不会被改动。
 
