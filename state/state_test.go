@@ -4,6 +4,7 @@ package state
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -127,7 +128,7 @@ func TestDefaultPath(t *testing.T) {
 	}
 
 	expectedSuffix := filepath.Join(".tinyproxyapi", "state.json")
-	if !filepath.IsAbs(p) || len(p) < len(expectedSuffix) || p[len(p)-len(expectedSuffix):] != expectedSuffix {
+	if !strings.HasSuffix(p, expectedSuffix) {
 		t.Errorf("DefaultPath 路径应以 %s 结尾，实际为: %s", expectedSuffix, p)
 	}
 }

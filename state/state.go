@@ -54,6 +54,9 @@ func DefaultPath() (string, error) {
 
 	// 降级策略：尝试可执行文件所在目录
 	if exe, exeErr := os.Executable(); exeErr == nil {
+		if absExe, absErr := filepath.Abs(exe); absErr == nil {
+			return filepath.Join(filepath.Dir(absExe), "state.json"), nil
+		}
 		return filepath.Join(filepath.Dir(exe), "state.json"), nil
 	}
 
