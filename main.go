@@ -1,12 +1,16 @@
 package main
 
 import (
+	_ "embed"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"syscall"
+	"unsafe"
 
 	"github.com/user/TinyProxyAPI/config"
 	"github.com/user/TinyProxyAPI/handler"
@@ -17,6 +21,14 @@ import (
 
 	"github.com/lxn/walk"
 	"github.com/lxn/win"
+)
+
+//go:embed config.toml.example
+var defaultConfigTemplate []byte
+
+var (
+	shell32          = syscall.NewLazyDLL("shell32.dll")
+	procShellExecute = shell32.NewProc("ShellExecuteW")
 )
 
 var (
@@ -30,6 +42,31 @@ var (
 
 func showError(title string, msg string) {
 	walk.MsgBox(nil, title, msg, walk.MsgBoxIconError)
+}
+
+// openConfigFile 使用 Windows 关联程序打开配置文件；若无关联程序则兜底使用记事本 notepad.exe。
+func openConfigFile(path string) {
+	verbPtr, _ := syscall.UTF16PtrFromString("open")
+	filePtr, _ := syscall.UTF16PtrFromString(path)
+
+	// ShellExecute 返回 HINSTANCE。在 Windows API 中，值 <= 32 表示失败（如 31=SE_ERR_NOASSOC）。
+	// 注：lxn/win 的 ShellExecute 返回 bool (ret != 0)，无法按 <= 32 判断 SE_ERR_NOASSOC 等错误码，
+	// 因此直接调用 ShellExecuteW 获取原始 HINSTANCE 进行判断。
+	ret, _, _ := procShellExecute.Call(
+		0,
+		uintptr(unsafe.Pointer(verbPtr)),
+		uintptr(unsafe.Pointer(filePtr)),
+		0,
+		0,
+		uintptr(win.SW_SHOWNORMAL),
+	)
+	if ret <= 32 {
+		log.Printf("warn: ShellExecute failed (%d), falling back to notepad: %s", ret, path)
+		cmd := exec.Command("notepad.exe", path)
+		if err := cmd.Start(); err != nil {
+			log.Printf("warn: failed to start notepad for config: %v", err)
+		}
+	}
 }
 
 // toggleLogWindow 切换日志窗口可见性，并同步托盘菜单勾选状态。
@@ -100,6 +137,12 @@ func main() {
 		configPath = filepath.Join(baseDir, configPath)
 	}
 
+	createdNewConfig, ensureErr := config.EnsureConfigFile(configPath, defaultConfigTemplate)
+	if ensureErr != nil {
+		showError("配置文件创建失败", fmt.Sprintf("failed to create default config: %v\n\n路径: %s", ensureErr, configPath))
+		return
+	}
+
 	var err error
 	conf, err = config.LoadConfig(configPath)
 	if err != nil {
@@ -136,6 +179,9 @@ func main() {
 
 	// 创建托盘；菜单在 NewTray 内部一次性构建，编排逻辑全部在本文件
 	tr, err = tray.NewTray(app, tray.Handlers{
+		OnOpenConfig: func() {
+			openConfigFile(configPath)
+		},
 		OnToggleLog:    toggleLogWindow,
 		OnLeftClick:    activateLogWindow,
 		OnToggleStartup: func() {
@@ -228,6 +274,16 @@ func main() {
 			log.Println("config reloaded successfully")
 		}
 	}()
+
+	if createdNewConfig {
+		openConfigFile(configPath)
+		walk.MsgBox(
+			tr.MainWindow(),
+			"提示",
+			fmt.Sprintf("未检测到配置文件，已为您自动生成默认配置文件 config.toml。\n\n代理服务已在系统托盘运行，并已为您打开配置文件，请填写您的 API Key 与模型配置后保存，保存后将自动热重载生效。\n\n配置文件路径:\n%s", configPath),
+			walk.MsgBoxIconInformation,
+		)
+	}
 
 	// 运行消息循环
 	tr.MainWindow().Run()
