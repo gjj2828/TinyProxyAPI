@@ -51,6 +51,7 @@ func loadAppIcon() *walk.Icon {
 // Handlers 是托盘菜单各项的回调。tray 包只负责"显示菜单"和"报告菜单被点击"，
 // 一次点击意味着什么（读写状态、显示窗口、退出）由调用方在 main.go 里决定。
 type Handlers struct {
+	OnOpenConfig    func()
 	OnToggleLog     func()
 	OnLeftClick     func()
 	OnToggleStartup func()
@@ -114,6 +115,12 @@ func NewTray(app *walk.Application, h Handlers) (*Tray, error) {
 	// 菜单只构建一次，此后仅通过 SyncMenuState 翻动勾选状态
 	menu := t.trayIcon.ContextMenu()
 
+	actOpenConfig := walk.NewAction()
+	actOpenConfig.SetText("打开配置文件")
+	if h.OnOpenConfig != nil {
+		actOpenConfig.Triggered().Attach(h.OnOpenConfig)
+	}
+
 	actShowLog := walk.NewAction()
 	actShowLog.SetText("显示日志")
 	actShowLog.SetCheckable(true)
@@ -137,10 +144,19 @@ func NewTray(app *walk.Application, h Handlers) (*Tray, error) {
 		actExit.Triggered().Attach(h.OnExit)
 	}
 
+	if err := menu.Actions().Add(actOpenConfig); err != nil {
+		return nil, err
+	}
+	if err := menu.Actions().Add(walk.NewSeparatorAction()); err != nil {
+		return nil, err
+	}
 	if err := menu.Actions().Add(actShowLog); err != nil {
 		return nil, err
 	}
 	if err := menu.Actions().Add(actStartup); err != nil {
+		return nil, err
+	}
+	if err := menu.Actions().Add(walk.NewSeparatorAction()); err != nil {
 		return nil, err
 	}
 	if err := menu.Actions().Add(actExit); err != nil {
