@@ -287,13 +287,13 @@ func main() {
 	}()
 
 	if createdNewConfig {
-		openConfigFile(configPath)
 		walk.MsgBox(
 			tr.MainWindow(),
 			"提示",
-			fmt.Sprintf("未检测到配置文件，已为您自动生成默认配置文件 config.toml。\n\n代理服务已在系统托盘运行，并已为您打开配置文件，请填写您的 API Key 与模型配置后保存，保存后将自动热重载生效。\n\n配置文件路径:\n%s", configPath),
+			fmt.Sprintf("未检测到配置文件，已为您自动生成默认配置文件 config.toml。\n\n代理服务已在系统托盘运行。点击“确定”后将自动为您打开配置文件，请填写您的 API Key 与模型配置后保存，保存后将自动热重载生效。\n\n配置文件路径:\n%s", configPath),
 			walk.MsgBoxIconInformation,
 		)
+		openConfigFile(configPath)
 	}
 
 	// 运行消息循环
