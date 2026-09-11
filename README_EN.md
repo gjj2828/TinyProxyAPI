@@ -95,6 +95,16 @@ After startup, an icon appears in the system tray. Right-click menu provides:
 - Left-click the tray icon to toggle log window visibility (replaces the old double-click behavior)
 - Clicking the minimize button hides the window to the tray
 
+### Screenshots
+
+Right-click the system tray icon to show the log window, configure whether it is shown at startup, or exit the program:
+
+![TinyProxyAPI tray menu](./docs/screenshots/tray-menu.png)
+
+The log window displays server startup messages, configuration reloads, and runtime errors:
+
+![TinyProxyAPI log window](./docs/screenshots/log-window.png)
+
 ### UI State
 
 The "Show log on startup" setting is **not managed by `config.toml`**, but controlled via the tray menu and saved in `state.json` in the same directory as the exe, defaulting to show on startup.

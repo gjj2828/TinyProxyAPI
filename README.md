@@ -95,6 +95,16 @@ kill -HUP $(pidof TinyProxyAPI)
 - 单击托盘图标可切换日志窗口显示状态（替代了旧版的双击）
 - 点击最小化按钮会隐藏窗口到托盘
 
+### 界面截图
+
+右键单击系统托盘图标，可以显示日志、设置是否在启动时自动显示日志，或退出程序：
+
+![TinyProxyAPI 托盘菜单](./docs/screenshots/tray-menu.png)
+
+日志窗口会显示服务器启动、配置热重载以及运行时错误等信息：
+
+![TinyProxyAPI 日志窗口](./docs/screenshots/log-window.png)
+
 ### 界面状态
 
 「日志启动时显示」的设置**不由 `config.toml` 管理**，而是由托盘菜单控制，保存在 exe 同目录的 `state.json` 中，默认值为启动时显示。
