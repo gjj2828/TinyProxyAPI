@@ -67,9 +67,9 @@
   //go:embed config.toml.example
   var DefaultConfigTemplate []byte
 
-  // EnsureConfigFile 检查目标路径配置文件是否存在；若不存在则自动从同目录 example 或内嵌模板生成。
+  // EnsureConfigFile 检查目标路径配置文件是否存在；若不存在则自动从同目录 example 或内置模板生成。
   // 返回 created 标识是否为本次新创建。
-  func EnsureConfigFile(path string) (bool, error) {
+  func EnsureConfigFile(path string, fallbackTemplate []byte) (bool, error) {
       if _, err := os.Stat(path); err == nil {
           return false, nil
       } else if !os.IsNotExist(err) {
@@ -81,7 +81,7 @@
       if data, err := os.ReadFile(examplePath); err == nil && len(data) > 0 {
           content = data
       } else {
-          content = DefaultConfigTemplate
+          content = fallbackTemplate
       }
 
       if err := os.WriteFile(path, content, 0644); err != nil {
@@ -90,7 +90,7 @@
       return true, nil
   }
   ```
-- **注意文件移动/链接**：`config.toml.example` 位于项目根目录，在 Go 1.16+ `embed` 中，只能嵌入当前包目录或其子目录中的文件。因此可将 `config.toml.example` 移至 `config/config.toml.example`，或在根目录保留并通过拷贝/符号链接维护，或统一规范放置于 `config/config.toml.example`（并在根目录保留或同步）。
+- **模板嵌入位置**：`config.toml.example` 位于项目根目录，由根目录下的 `main.go`（或根包）直接使用 `//go:embed config.toml.example` 嵌入为 `defaultConfigTemplate []byte`，在调用 `config.EnsureConfigFile(configPath, defaultConfigTemplate)` 时传入。根目录无需移动或冗余复制文件，各包职责边界清晰。
 
 ### 2. `tray` 包
 - **`tray/tray.go`**：
