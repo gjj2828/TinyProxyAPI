@@ -53,6 +53,19 @@ platform = "openai"
 
 ### 请求示例
 
+**模型列表：**
+```bash
+curl http://localhost:3178/v1/models
+```
+
+**聊天补全：**
+```bash
+curl -X POST http://localhost:3178/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+**其他 OpenAI 兼容接口**（透传到对应平台）：
 ```bash
 curl -X POST http://localhost:3178/v1/responses \
   -H "Content-Type: application/json" \
