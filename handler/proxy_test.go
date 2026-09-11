@@ -129,11 +129,26 @@ func TestProxyHandler_ListModels(t *testing.T) {
 	if len(resp.Data) != 3 {
 		t.Errorf("expected 3 models, got %d", len(resp.Data))
 	}
-	// Verify first model
-	if resp.Data[0].ID != "gpt-4o" || resp.Data[0].OwnedBy != "openai" {
-		t.Errorf("unexpected first model: %+v", resp.Data[0])
+	// Verify first model by looking it up by ID (avoid relying on map iteration order)
+	var gpt4o *struct {
+		ID      string `json:"id"`
+		Object  string `json:"object"`
+		Created int64  `json:"created"`
+		OwnedBy string `json:"owned_by"`
 	}
-	if resp.Data[0].Created != 1788944949 {
-		t.Errorf("expected created=1788944949, got %d", resp.Data[0].Created)
+	for i := range resp.Data {
+		if resp.Data[i].ID == "gpt-4o" {
+			gpt4o = &resp.Data[i]
+			break
+		}
+	}
+	if gpt4o == nil {
+		t.Fatalf("expected model 'gpt-4o' in response, got %+v", resp.Data)
+	}
+	if gpt4o.OwnedBy != "openai" {
+		t.Errorf("expected gpt-4o owned_by='openai', got '%s'", gpt4o.OwnedBy)
+	}
+	if gpt4o.Created != 1788944949 {
+		t.Errorf("expected gpt-4o created=1788944949, got %d", gpt4o.Created)
 	}
 }
