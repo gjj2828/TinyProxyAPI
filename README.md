@@ -7,15 +7,23 @@
 
 [English](./README_EN.md) | 极轻量的 API 路由代理服务，根据请求中的模型名将请求透传到对应的平台。
 
+## 背景
+
+市面上的 API 中转站定价不一：有些提供 `luna` 转发但倍率较高，有些只有 `terra`/`sol`/`astra` 等转发且倍率较低。通过 CPA 代理的请求经常会被中转站识别拦截导致失败。
+
+TinyProxyAPI 的核心优势在于**透传**——除了必须替换的 Header 中的 Host 和 Authorization 之外，Header 中的其他字段和 Body 中的所有内容都原封不动转发，转发行为接近直接请求，因此不会被中转站的风控机制识别。可以将不同平台的中转站聚合起来，通过配置文件按模型名自动路由到合适的中转站。切换中转站只需改 `config.toml`，Codex 客户端侧全程无感知。
+
 ## 特性
 
-- **透传** - 使用 `httputil.ReverseProxy`，最小化 Header 和 Body 修改
+- **透传** - 使用 `httputil.ReverseProxy`，Body 原封不动转发，仅替换路由必需的 Header（Host 和 Authorization），不进行任何内容检查或修改
 - **灵活路由** - 模型名全量匹配，通过 TOML 配置
 - **平台抽象** - 同一平台的多个模型共享 base_url 和 api_key
 - **热重载** - 改完 `config.toml` 保存即生效（基于 fsnotify 跨平台监听）；Linux/Mac 也可发 SIGHUP 触发
 - **自动初始化** - 未检测到配置文件时自动生成默认 `config.toml`，并调起关联编辑器引导配置
 - **系统托盘** - Windows 运行时隐藏控制台窗口，通过托盘图标管理程序（显示/隐藏日志窗口、打开配置文件、退出）
 - **日志窗口** - 可查看程序运行日志，支持启动时自动显示
+
+> **当前仅支持 `/v1/responses` 端点**（OpenAI Responses API），`/v1/chat/completions` 等其他端点暂未适配。
 
 ## 快速开始
 
@@ -64,14 +72,7 @@ platform = "openai"
 curl http://localhost:3178/v1/models
 ```
 
-**聊天补全：**
-```bash
-curl -X POST http://localhost:3178/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'
-```
-
-**其他 OpenAI 兼容接口**（透传到对应平台）：
+**Responses（OpenAI Responses API）：**
 ```bash
 curl -X POST http://localhost:3178/v1/responses \
   -H "Content-Type: application/json" \

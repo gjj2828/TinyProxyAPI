@@ -7,15 +7,21 @@
 
 [中文](./README.md) | Ultra-lightweight API routing proxy that forwards requests to the corresponding platform based on the model name in the request.
 
+## Background
+
+Different API proxy providers offer different model routing options at different rates: some offer `luna` forwarding but at higher multipliers, while others only have `terra`/`sol`/`astra` at lower rates. Requests routed through CPA proxies are often blocked or flagged by these services. TinyProxyAPI solves this by acting as a **pass-through** proxy — besides the Host and Authorization headers that must be replaced for routing, all other headers and the entire request body are forwarded unchanged, making forwarded requests appear nearly identical to direct ones and avoiding anti-fraud detection on the proxy services. You can aggregate multiple proxy providers and route different models to the most cost-effective provider by editing `config.toml`, with no changes needed on the Codex client side.
+
 ## Features
 
-- **Proxy** - Uses `httputil.ReverseProxy` with minimal Header and Body modifications
+- **Pass-Through** - Uses `httputil.ReverseProxy`, forwarding Body unchanged while only modifying routing-required headers (Host and Authorization), with no content inspection or modification
 - **Flexible Routing** - Full model name matching via TOML configuration
 - **Platform Abstraction** - Multiple models on the same platform share base_url and api_key
 - **Hot Reload** - Changes to `config.toml` take effect on save (via cross-platform fsnotify); Linux/Mac can also trigger with SIGHUP
 - **Auto-Initialization** - Automatically creates a default `config.toml` if missing and opens it in your editor
 - **System Tray** - On Windows, hides the console window and manages the program via tray icon (show/hide log window, open config file, exit)
 - **Log Window** - View program runtime logs, with optional auto-show on startup
+
+> **Currently only `/v1/responses` endpoint is supported** (OpenAI Responses API). Other endpoints like `/v1/chat/completions` are not yet implemented.
 
 ## Quick Start
 
@@ -64,14 +70,7 @@ platform = "openai"
 curl http://localhost:3178/v1/models
 ```
 
-**Chat Completions:**
-```bash
-curl -X POST http://localhost:3178/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'
-```
-
-**Other OpenAI-compatible interfaces** (forwarded to the corresponding platform):
+**Responses (OpenAI Responses API):**
 ```bash
 curl -X POST http://localhost:3178/v1/responses \
   -H "Content-Type: application/json" \
