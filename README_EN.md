@@ -21,7 +21,7 @@ Different API proxy providers offer different model routing options at different
 - **System Tray** - On Windows, hides the console window and manages the program via tray icon (show/hide log window, open config file, exit)
 - **Log Window** - View program runtime logs, with optional auto-show on startup
 
-> **Currently only `/v1/responses` endpoint is supported** (OpenAI Responses API). Other endpoints like `/v1/chat/completions` are not yet implemented.
+> **Currently only `/v1/responses` endpoint is supported** (OpenAI Responses API). Other endpoints like `/v1/chat/completions` are not yet implemented. Other endpoint types may be added in the future if needed.
 
 ## Quick Start
 

@@ -23,7 +23,7 @@ TinyProxyAPI 的核心优势在于**透传**——除了必须替换的 Header �
 - **系统托盘** - Windows 运行时隐藏控制台窗口，通过托盘图标管理程序（显示/隐藏日志窗口、打开配置文件、退出）
 - **日志窗口** - 可查看程序运行日志，支持启动时自动显示
 
-> **当前仅支持 `/v1/responses` 端点**（OpenAI Responses API），`/v1/chat/completions` 等其他端点暂未适配。
+> **当前仅支持 `/v1/responses` 端点**（OpenAI Responses API），`/v1/chat/completions` 等其他端点暂未适配。如有需要，后续可扩展支持其他类型的端点。
 
 ## 快速开始
 
