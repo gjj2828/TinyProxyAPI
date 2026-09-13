@@ -1,5 +1,10 @@
 # TinyProxyAPI
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/gjj2828/TinyProxyAPI)](https://goreportcard.com/report/github.com/gjj2828/TinyProxyAPI)
+[![CI](https://github.com/gjj2828/TinyProxyAPI/actions/workflows/ci.yml/badge.svg)](https://github.com/gjj2828/TinyProxyAPI/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/gjj2828/TinyProxyAPI)](https://github.com/gjj2828/TinyProxyAPI/releases)
+
 [中文](./README.md) | Ultra-lightweight API routing proxy that forwards requests to the corresponding platform based on the model name in the request.
 
 ## Features
@@ -163,3 +168,7 @@ TinyProxyAPI/
 - github.com/pelletier/go-toml/v2
 - github.com/fsnotify/fsnotify
 - github.com/lxn/walk (system tray)
+
+## License
+
+This project is licensed under the [MIT License](./LICENSE).

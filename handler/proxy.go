@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"sync/atomic"
 
-	"github.com/user/TinyProxyAPI/matcher"
+	"github.com/gjj2828/TinyProxyAPI/matcher"
 )
 
 // ProxyHandler 是 HTTP server 持有的单例 handler。

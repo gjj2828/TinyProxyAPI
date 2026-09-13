@@ -12,12 +12,12 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/user/TinyProxyAPI/config"
-	"github.com/user/TinyProxyAPI/handler"
-	"github.com/user/TinyProxyAPI/matcher"
-	"github.com/user/TinyProxyAPI/signal"
-	"github.com/user/TinyProxyAPI/state"
-	"github.com/user/TinyProxyAPI/tray"
+	"github.com/gjj2828/TinyProxyAPI/config"
+	"github.com/gjj2828/TinyProxyAPI/handler"
+	"github.com/gjj2828/TinyProxyAPI/matcher"
+	"github.com/gjj2828/TinyProxyAPI/signal"
+	"github.com/gjj2828/TinyProxyAPI/state"
+	"github.com/gjj2828/TinyProxyAPI/tray"
 
 	"github.com/lxn/walk"
 	"github.com/lxn/win"

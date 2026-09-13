@@ -1,5 +1,10 @@
 # TinyProxyAPI
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/gjj2828/TinyProxyAPI)](https://goreportcard.com/report/github.com/gjj2828/TinyProxyAPI)
+[![CI](https://github.com/gjj2828/TinyProxyAPI/actions/workflows/ci.yml/badge.svg)](https://github.com/gjj2828/TinyProxyAPI/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/gjj2828/TinyProxyAPI)](https://github.com/gjj2828/TinyProxyAPI/releases)
+
 [English](./README_EN.md) | 极轻量的 API 路由代理服务，根据请求中的模型名将请求透传到对应的平台。
 
 ## 特性
@@ -163,3 +168,7 @@ TinyProxyAPI/
 - github.com/pelletier/go-toml/v2
 - github.com/fsnotify/fsnotify
 - github.com/lxn/walk（系统托盘）
+
+## 开源协议
+
+本项目基于 [MIT License](./LICENSE) 开源。

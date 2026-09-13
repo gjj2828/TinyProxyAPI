@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/user/TinyProxyAPI/config"
-	"github.com/user/TinyProxyAPI/handler"
-	"github.com/user/TinyProxyAPI/matcher"
+	"github.com/gjj2828/TinyProxyAPI/config"
+	"github.com/gjj2828/TinyProxyAPI/handler"
+	"github.com/gjj2828/TinyProxyAPI/matcher"
 )
 
 // 端到端：模拟用户实际场景——

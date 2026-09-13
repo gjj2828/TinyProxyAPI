@@ -1,4 +1,4 @@
-module github.com/user/TinyProxyAPI
+module github.com/gjj2828/TinyProxyAPI
 
 go 1.26.5
 
@@ -13,5 +13,3 @@ require (
 	golang.org/x/sys v0.13.0 // indirect
 	gopkg.in/Knetic/govaluate.v3 v3.0.0 // indirect
 )
-
-replace github.com/user/TinyProxyAPI => .

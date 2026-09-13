@@ -4,7 +4,7 @@ package matcher
 import (
 	"testing"
 
-	"github.com/user/TinyProxyAPI/config"
+	"github.com/gjj2828/TinyProxyAPI/config"
 )
 
 func TestMatcher_Match(t *testing.T) {

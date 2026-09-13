@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/user/TinyProxyAPI/config"
-	"github.com/user/TinyProxyAPI/matcher"
+	"github.com/gjj2828/TinyProxyAPI/config"
+	"github.com/gjj2828/TinyProxyAPI/matcher"
 )
 
 func TestProxyHandler_ServeHTTP(t *testing.T) {

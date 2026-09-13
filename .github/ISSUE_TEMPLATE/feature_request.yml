@@ -1,0 +1,29 @@
+---
+name: Feature request
+description: 为 TinyProxyAPI 提出新功能建议或优化想法
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        欢迎提出功能建议！请尽量详细地说明你希望添加的功能或行为。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你的需求或遇到的问题
+      description: 这个建议与什么问题或需求相关？
+      placeholder: 当我尝试 ... 时遇到不便，因为 ...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: 期望的解决方案
+      description: 清晰简洁地描述你希望发生什么。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 考虑过的替代方案
+      description: 你是否考虑过其他可行的替代方案？

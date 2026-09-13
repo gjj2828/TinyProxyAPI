@@ -1,0 +1,54 @@
+---
+name: Bug report
+description: 提交 Bug 报告以帮助我们修复 TinyProxyAPI 中的问题
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你报告问题！在提交之前，请确保你已经搜索过现有的 Issues，避免重复报告。
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug 描述
+      description: 清晰简要地描述遇到的 Bug。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 重现步骤
+      description: 请详细描述重现该问题的步骤。
+      placeholder: |
+        1. 启动 TinyProxyAPI
+        2. 发送请求：curl ...
+        3. 观察到 ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+      description: 你期望发生什么？
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或控制台输出
+      description: 如果可能，请附上日志窗口或控制台输出的相关内容（注意隐藏真实的 API Key！）。
+      render: shell
+  - type: input
+    id: os
+    attributes:
+      label: 操作系统与版本
+      placeholder: Windows 11 / Windows 10 (22H2)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: TinyProxyAPI 版本
+      placeholder: v0.0.1 或 commit sha
+    validations:
+      required: true

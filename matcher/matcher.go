@@ -4,7 +4,7 @@ package matcher
 import (
 	"errors"
 
-	"github.com/user/TinyProxyAPI/config"
+	"github.com/gjj2828/TinyProxyAPI/config"
 )
 
 // ErrModelNotConfigured 模型不在 models 表中，且未配置 default platform
