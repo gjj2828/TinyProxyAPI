@@ -8,14 +8,29 @@ allowed_keys = ["your-key-here"]
 [server]
 addr = ":3178"
 
+# 模型未在 [models] / [models.<protocol>] 中命中时的兜底平台
 [default]
 platform = "openai"
 
 [platforms]
 "openai" = { base_url = "https://api.openai.com", api_key = "sk-your-openai-key" }
 "anthropic" = { base_url = "https://api.anthropic.com", api_key = "sk-ant-your-anthropic-key" }
+"relay" = { base_url = "https://your-relay.example.com", api_key = "sk-your-relay-key" }
 
+# 通用映射：model -> platform，请求未按协议特别指定时使用这里的平台。
+#
+# 支持的协议由客户端请求的端点决定，并按原格式透传到上游同名端点：
+#   responses  -> POST /v1/responses         (OpenAI Responses API，Codex 使用)
+#   openai     -> POST /v1/chat/completions  (OpenAI Chat Completions API)
+#   anthropic  -> POST /v1/messages          (Anthropic Messages API)
 [models]
 "gpt-4o" = "openai"
 "gpt-4o-mini" = "openai"
 "claude-sonnet-4-20250514" = "anthropic"
+
+# 可选：按协议覆盖，优先级高于上面的 [models]。
+# 适用场景：同一个模型名在不同协议下走不同的平台。
+# 例如让 gpt-4o 的 Responses 请求走 relay，其余协议仍走 openai：
+#
+# [models.responses]
+# "gpt-4o" = "relay"

@@ -16,14 +16,15 @@ TinyProxyAPI 的核心优势在于**透传**——除了必须替换的 Header �
 ## 特性
 
 - **透传** - 使用 `httputil.ReverseProxy`，Body 原封不动转发，仅替换路由必需的 Header（Host 和 Authorization），不进行任何内容检查或修改
-- **灵活路由** - 模型名全量匹配，通过 TOML 配置
+- **多协议** - 支持 `responses`（`/v1/responses`）、`openai`（`/v1/chat/completions`）、`anthropic`（`/v1/messages`）三种协议端点，请求按原格式透传到上游同名端点
+- **灵活路由** - 模型名全量匹配，通过 TOML 配置；可按协议覆盖，让同一模型在不同协议下走不同平台
 - **平台抽象** - 同一平台的多个模型共享 base_url 和 api_key
 - **热重载** - 改完 `config.toml` 保存即生效（基于 fsnotify 跨平台监听）；Linux/Mac 也可发 SIGHUP 触发
 - **自动初始化** - 未检测到配置文件时自动生成默认 `config.toml`，并调起关联编辑器引导配置
 - **系统托盘** - Windows 运行时隐藏控制台窗口，通过托盘图标管理程序（显示/隐藏日志窗口、打开配置文件、退出）
 - **日志窗口** - 可查看程序运行日志，支持启动时自动显示
 
-> **当前仅支持 `/v1/responses` 端点**（OpenAI Responses API），`/v1/chat/completions` 等其他端点暂未适配。如有需要，后续可扩展支持其他类型的端点。
+> **已支持三种协议端点**：`/v1/responses`（OpenAI Responses API，Codex 使用）、`/v1/chat/completions`（OpenAI Chat Completions API）、`/v1/messages`（Anthropic Messages API）。请求按原格式透传到上游同名端点，代理仅替换 Host 与鉴权头（Anthropic 自动使用 `x-api-key`）。
 
 ## 快速开始
 
@@ -44,10 +45,21 @@ platform = "openai"
 "anthropic" = { base_url = "https://api.anthropic.com", api_key = "sk-ant-your-key" }
 
 [models]
+# 通用映射：model -> platform，未按协议特别指定时使用
 "gpt-4o" = "openai"
 "gpt-4o-mini" = "openai"
 "claude-sonnet-4-20250514" = "anthropic"
+
+# 可选：按协议覆盖，优先级高于上面的 [models]
+# 协议名由客户端端点决定：responses / openai / anthropic
+# [models.responses]
+# "gpt-4o" = "anthropic"
 ```
+
+> **协议说明**：客户端请求的端点决定协议，并按原格式透传到上游同名端点——
+> `POST /v1/responses` → `responses`、`POST /v1/chat/completions` → `openai`、`POST /v1/messages` → `anthropic`。
+> 路由按「(协议, 模型) → 平台」匹配：先查 `[models.<协议>]`，再查 `[models]`，最后回退 `[default].platform`。
+> 因此同名模型在不同协议下可以指向不同平台。向 Anthropic 上游转发时会自动使用 `x-api-key`（并在缺失时补默认 `anthropic-version`），不会泄露客户端凭证。
 
 > ⚠️ **TOML 坑**：`allowed_keys` 是顶层 key，必须放在**所有 `[table]` 之前**。
 > 如果写在 `[default]` 之后，它会被归入 `[default]` 表，但由于 `DefaultConfig` 结构体没有 `AllowedKeys` 字段，这个值会被**静默忽略**，导致所有客户端 key 都被白名单拒绝、代理返回 401 `invalid api key`。
@@ -77,6 +89,22 @@ curl http://localhost:3178/v1/models
 curl -X POST http://localhost:3178/v1/responses \
   -H "Content-Type: application/json" \
   -d '{"model": "gpt-4o", "input": "Hello"}'
+```
+
+**Chat Completions（OpenAI Chat Completions API）：**
+```bash
+curl -X POST http://localhost:3178/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-client-key" \
+  -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+**Messages（Anthropic Messages API）：**
+```bash
+curl -X POST http://localhost:3178/v1/messages \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your-client-key" \
+  -d '{"model": "claude-sonnet-4-20250514", "max_tokens": 1024, "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
 ## 配置热重载

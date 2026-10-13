@@ -14,14 +14,15 @@ Different API proxy providers offer different model routing options at different
 ## Features
 
 - **Pass-Through** - Uses `httputil.ReverseProxy`, forwarding Body unchanged while only modifying routing-required headers (Host and Authorization), with no content inspection or modification
-- **Flexible Routing** - Full model name matching via TOML configuration
+- **Multi-Protocol** - Supports `responses` (`/v1/responses`), `openai` (`/v1/chat/completions`), and `anthropic` (`/v1/messages`) endpoints, forwarding each request unchanged to the same upstream endpoint
+- **Flexible Routing** - Full model name matching via TOML configuration; per-protocol override lets the same model route to different platforms per protocol
 - **Platform Abstraction** - Multiple models on the same platform share base_url and api_key
 - **Hot Reload** - Changes to `config.toml` take effect on save (via cross-platform fsnotify); Linux/Mac can also trigger with SIGHUP
 - **Auto-Initialization** - Automatically creates a default `config.toml` if missing and opens it in your editor
 - **System Tray** - On Windows, hides the console window and manages the program via tray icon (show/hide log window, open config file, exit)
 - **Log Window** - View program runtime logs, with optional auto-show on startup
 
-> **Currently only `/v1/responses` endpoint is supported** (OpenAI Responses API). Other endpoints like `/v1/chat/completions` are not yet implemented. Other endpoint types may be added in the future if needed.
+> **Three protocol endpoints are supported**: `/v1/responses` (OpenAI Responses API, used by Codex), `/v1/chat/completions` (OpenAI Chat Completions API), and `/v1/messages` (Anthropic Messages API). Requests are forwarded unchanged to the same upstream endpoint, with only Host and auth headers replaced (Anthropic uses `x-api-key` automatically).
 
 ## Quick Start
 
@@ -42,10 +43,21 @@ platform = "openai"
 "anthropic" = { base_url = "https://api.anthropic.com", api_key = "sk-ant-your-key" }
 
 [models]
+# Generic mapping: model -> platform, used when no per-protocol override applies
 "gpt-4o" = "openai"
 "gpt-4o-mini" = "openai"
 "claude-sonnet-4-20250514" = "anthropic"
+
+# Optional: per-protocol override, takes precedence over [models]
+# Protocol name is determined by the client endpoint: responses / openai / anthropic
+# [models.responses]
+# "gpt-4o" = "anthropic"
 ```
+
+> **Protocol note**: the client endpoint determines the protocol, and the request is forwarded unchanged to the same upstream endpoint —
+> `POST /v1/responses` → `responses`, `POST /v1/chat/completions` → `openai`, `POST /v1/messages` → `anthropic`.
+> Routing matches `(protocol, model) → platform`: first `[models.<protocol>]`, then `[models]`, then the `[default].platform` fallback.
+> So the same model name can point to different platforms across protocols. When forwarding to an Anthropic upstream the proxy uses `x-api-key` (adding a default `anthropic-version` if missing) and never leaks client credentials.
 
 > ⚠️ **TOML Gotcha**: `allowed_keys` is a top-level key and must be placed **before all `[table]` sections**.
 > If placed after `[default]`, it gets grouped into the `[default]` table, but since the `DefaultConfig` struct has no `AllowedKeys` field, the value is **silently ignored**, causing all client keys to be rejected by the whitelist and the proxy returns 401 `invalid api key`.
@@ -75,6 +87,22 @@ curl http://localhost:3178/v1/models
 curl -X POST http://localhost:3178/v1/responses \
   -H "Content-Type: application/json" \
   -d '{"model": "gpt-4o", "input": "Hello"}'
+```
+
+**Chat Completions (OpenAI Chat Completions API):**
+```bash
+curl -X POST http://localhost:3178/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-client-key" \
+  -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+**Messages (Anthropic Messages API):**
+```bash
+curl -X POST http://localhost:3178/v1/messages \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your-client-key" \
+  -d '{"model": "claude-sonnet-4-20250514", "max_tokens": 1024, "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
 ## Configuration Hot Reload
