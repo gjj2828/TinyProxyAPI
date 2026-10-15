@@ -24,7 +24,7 @@
 | Method | `POST` | `POST` |
 | Path | `/v1/messages/count_tokens` | `/v1/responses/input_tokens` |
 | 鉴权 | `Authorization: Bearer` 或 `x-api-key`（白名单同 `allowed_keys`） | 同左 |
-| Body | Anthropic Messages API 的 messages/messages 数组 + model | OpenAI Responses API 的 input + model |
+| Body | Anthropic Messages API 的 messages 数组 + model | OpenAI Responses API 的 input + model |
 | 上游 | `POST <platform.base_url>/v1/messages/count_tokens` | `POST <platform.base_url>/v1/responses/input_tokens` |
 
 ### 响应
@@ -99,7 +99,7 @@ ServeHTTP:
 | `/v1/messages/batches` 系列 | 跨平台一致性问题：批量结果只能从提交时同一平台读取，记忆方案不可靠 |
 | `/v1/completions`、`/v1/embeddings`、`/v1/images/*` | 与 model 路由语义一致性低，且使用频率低 |
 | `/v1/batches` 系列 | 与 `/v1/messages/batches` 同问题 |
-| `/v1/responses/{response_id}`（GET/cancel/input_items） | GET/cancel 请求体不携带 model，无法按模型路由；默认方案又隐含 text 协议平台限定 |
+| `/v1/responses/{response_id}`（GET/cancel/input_items） | GET/cancel 请求体不携带 model，无法按模型路由；default 方案又隐含 default 平台限定 |
 | `/v1/audio/*`、`/v1/files`、`/v1/fine_tuning/*` 等管理类端点 | 与「按 model 路由」无关 |
 
 ## 兼容性
