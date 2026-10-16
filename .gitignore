@@ -21,3 +21,6 @@ TinyProxyAPI.exe
 
 # 头脑风暴可视化伴侣与 SDD 执行过程的临时产物
 .superpowers/
+
+# Git worktrees（临时隔离工作区）
+.worktrees/
