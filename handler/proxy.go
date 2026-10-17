@@ -15,7 +15,8 @@ import (
 	"github.com/gjj2828/TinyProxyAPI/matcher"
 )
 
-// 支持的协议种类。
+// 上游协议种类。取值同时是 config.toml 中 [models.<协议>] 的段名，
+// 由客户端调用的端点（见 endpointProtocol）决定，不由模型名决定。
 const (
 	protocolResponses = "responses"
 	protocolOpenAI    = "openai"
@@ -27,10 +28,13 @@ const defaultAnthropicVersion = "2023-06-01"
 
 // endpointProtocol 把客户端请求路径映射到协议种类。
 // 客户端调哪个端点，就以哪种协议透传到上游同名端点。
+// key 与服务端精确路径相等，不做前缀或正则匹配。
 var endpointProtocol = map[string]string{
-	"/v1/responses":        protocolResponses,
-	"/v1/chat/completions": protocolOpenAI,
-	"/v1/messages":         protocolAnthropic,
+	"/v1/responses":               protocolResponses,
+	"/v1/responses/input_tokens":  protocolResponses, // Responses 系列的 token 计数
+	"/v1/chat/completions":        protocolOpenAI,
+	"/v1/messages":                protocolAnthropic,
+	"/v1/messages/count_tokens":   protocolAnthropic, // Messages 系列的 token 计数
 }
 
 // ProxyHandler 是 HTTP server 持有的单例 handler。
