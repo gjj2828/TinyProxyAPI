@@ -68,14 +68,30 @@ platform = "openai"
 
 ```powershell
 # Windows 构建（隐藏控制台窗口）
-.\build.ps1
+.\build.cmd
 
 # 运行
 .\TinyProxyAPI.exe -config config.toml
 ```
 
+> **请用 `build.cmd`，不要直接跑 `build.ps1`。**
+> `build.cmd` 只是给 `build.ps1` 加了一层 `-ExecutionPolicy Bypass` 的包装。
+> 如果你的 PowerShell 执行策略是默认的 `RemoteSigned`，而工作区里的 `.ps1`
+> 文件带有 Low 完整性标签（部分沙箱环境会给整个目录树打这个标签），PowerShell 会把该文件
+> 判定为「非本地」来源并要求数字签名，于是直接 `.\build.ps1` 会报
+> `未对文件 build.ps1 进行数字签名`。`build.cmd` 不受 PowerShell 执行策略约束，可以正常加载。
+
+> **构建必须在普通 PowerShell 窗口里跑。** `build.ps1` 结尾会用
+> `icacls TinyProxyAPI.exe /setintegritylevel M` 把 exe 的完整性标签重置为 Medium。
+> Windows 规定进程实际完整性级别 = min(调用者 IL, 文件 IL)，所以 exe 会继承工作区的
+> Low 标签；Low IL 进程受 UIPI 限制，无法向 explorer 通知区域发窗口消息，
+> `Shell_NotifyIcon` 必然失败——表现就是启动即报「托盘创建失败」。
+> 若在 Low 完整性环境里构建，脚本会给出警告，此时产出的 exe 无法创建托盘图标，
+> 需在普通 PowerShell 里重新执行 `icacls TinyProxyAPI.exe /setintegritylevel M` 修复。
+
 > 或手动构建：`go build -ldflags="-H windowsgui" -o TinyProxyAPI.exe .`
 > Windows 上 `go build -o name .` 不会自动补 `.exe` 后缀，必须显式指定。
+> 手动构建**不会**重置完整性标签，托盘图标可能无法创建。
 
 ### 请求示例
 
@@ -146,6 +162,11 @@ kill -HUP $(pidof TinyProxyAPI)
 
 - 单击托盘图标可切换日志窗口显示状态（替代了旧版的双击）
 - 点击最小化按钮会隐藏窗口到托盘
+
+> **启动时报「创建托盘图标失败」？** 先运行 `icacls TinyProxyAPI.exe`，
+> 若输出里有 `Mandatory Label\Low Mandatory Level`，说明 exe 继承了工作区的低完整性标签，
+> 在普通 PowerShell 里执行 `icacls TinyProxyAPI.exe /setintegritylevel M` 修复即可。
+> 根因与原理见 [build.ps1](./build.ps1) 内的注释。
 
 ### 界面截图
 

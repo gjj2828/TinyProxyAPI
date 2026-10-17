@@ -66,14 +66,33 @@ platform = "openai"
 
 ```powershell
 # Windows build (hidden console window)
-.\build.ps1
+.\build.cmd
 
 # Run
 .\TinyProxyAPI.exe -config config.toml
 ```
 
+> **Use `build.cmd`, not `build.ps1` directly.**
+> `build.cmd` is a thin wrapper that runs `build.ps1` with `-ExecutionPolicy Bypass`.
+> If your PowerShell execution policy is the default `RemoteSigned` and the `.ps1` file
+> carries a Low mandatory integrity label (some sandboxed tooling labels a whole directory
+> tree this way), PowerShell treats the file as not-local and demands an Authenticode
+> signature — so a plain `.\build.ps1` fails with "not digitally signed".
+> Batch files are not subject to the execution policy, so `build.cmd` loads fine.
+
+> **Run the build from a normal PowerShell window.** `build.ps1` finishes with
+> `icacls TinyProxyAPI.exe /setintegritylevel M`, which resets the executable's integrity
+> label to Medium. Windows gives a process the *lower* of the caller's and the file's
+> integrity level, so the exe inherits the workspace's Low label; a Low-IL process is
+> restricted by UIPI and cannot send window messages to Explorer's notification area, so
+> `Shell_NotifyIcon` always fails — the program exits with "failed to create tray icon".
+> Building inside a Low-integrity environment makes the script warn; the resulting exe then
+> cannot create its tray icon until you run
+> `icacls TinyProxyAPI.exe /setintegritylevel M` from a normal PowerShell window.
+
 > Or build manually: `go build -ldflags="-H windowsgui" -o TinyProxyAPI.exe .`
 > On Windows, `go build -o name .` does not automatically append `.exe`, you must specify it explicitly.
+> A manual build does **not** reset the integrity label, so the tray icon may fail to appear.
 
 ### Request Examples
 
@@ -144,6 +163,11 @@ After startup, an icon appears in the system tray. Right-click menu provides:
 
 - Left-click the tray icon to toggle log window visibility (replaces the old double-click behavior)
 - Clicking the minimize button hides the window to the tray
+
+> **"Failed to create tray icon" on startup?** Run `icacls TinyProxyAPI.exe` first. If the
+> output contains `Mandatory Label\Low Mandatory Level`, the exe inherited the workspace's
+> Low integrity label; fix it with `icacls TinyProxyAPI.exe /setintegritylevel M` from a
+> normal PowerShell window. See the comments in [build.ps1](./build.ps1) for the rationale.
 
 ### Screenshots
 
