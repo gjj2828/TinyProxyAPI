@@ -14,7 +14,7 @@ Different API proxy providers offer different model routing options at different
 ## Features
 
 - **Pass-Through** - Uses `httputil.ReverseProxy`, forwarding Body unchanged while only modifying routing-required headers (Host and Authorization), with no content inspection or modification
-- **Multi-Protocol** - Supports `responses` (`/v1/responses`), `openai` (`/v1/chat/completions`), and `anthropic` (`/v1/messages`) endpoints, forwarding each request unchanged to the same upstream endpoint
+- **Multi-Protocol** - Supports `responses` (`/v1/responses`, `/v1/responses/input_tokens`), `openai` (`/v1/chat/completions`), and `anthropic` (`/v1/messages`, `/v1/messages/count_tokens`) endpoints, forwarding each request unchanged to the same upstream endpoint
 - **Flexible Routing** - Full model name matching via TOML configuration; per-protocol override lets the same model route to different platforms per protocol
 - **Platform Abstraction** - Multiple models on the same platform share base_url and api_key
 - **Hot Reload** - Changes to `config.toml` take effect on save (via cross-platform fsnotify); Linux/Mac can also trigger with SIGHUP
@@ -22,7 +22,7 @@ Different API proxy providers offer different model routing options at different
 - **System Tray** - On Windows, hides the console window and manages the program via tray icon (show/hide log window, open config file, exit)
 - **Log Window** - View program runtime logs, with optional auto-show on startup
 
-> **Three protocol endpoints are supported**: `/v1/responses` (OpenAI Responses API, used by Codex), `/v1/chat/completions` (OpenAI Chat Completions API), and `/v1/messages` (Anthropic Messages API). Requests are forwarded unchanged to the same upstream endpoint, with only Host and auth headers replaced (Anthropic uses `x-api-key` automatically).
+> **Five endpoints are supported**: `/v1/responses`, `/v1/responses/input_tokens` (OpenAI Responses API, used by Codex), `/v1/chat/completions` (OpenAI Chat Completions API), and `/v1/messages`, `/v1/messages/count_tokens` (Anthropic Messages API). Requests are forwarded unchanged to the same upstream endpoint, with only Host and auth headers replaced (Anthropic uses `x-api-key` automatically).
 
 ## Quick Start
 
@@ -55,7 +55,7 @@ platform = "openai"
 ```
 
 > **Protocol note**: the client endpoint determines the protocol, and the request is forwarded unchanged to the same upstream endpoint —
-> `POST /v1/responses` → `responses`, `POST /v1/chat/completions` → `openai`, `POST /v1/messages` → `anthropic`.
+> `POST /v1/responses`, `POST /v1/responses/input_tokens` → `responses`, `POST /v1/chat/completions` → `openai`, `POST /v1/messages`, `POST /v1/messages/count_tokens` → `anthropic`.
 > Routing matches `(protocol, model) → platform`: first `[models.<protocol>]`, then `[models]`, then the `[default].platform` fallback.
 > So the same model name can point to different platforms across protocols. When forwarding to an Anthropic upstream the proxy uses `x-api-key` (adding a default `anthropic-version` if missing) and never leaks client credentials.
 
@@ -103,6 +103,22 @@ curl -X POST http://localhost:3178/v1/messages \
   -H "Content-Type: application/json" \
   -H "x-api-key: your-client-key" \
   -d '{"model": "claude-sonnet-4-20250514", "max_tokens": 1024, "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+**Token Counting (Anthropic Messages API):**
+```bash
+curl -X POST http://localhost:3178/v1/messages/count_tokens \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your-client-key" \
+  -d '{"model": "claude-sonnet-4-20250514", "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+**Token Counting (OpenAI Responses API):**
+```bash
+curl -X POST http://localhost:3178/v1/responses/input_tokens \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-client-key" \
+  -d '{"model": "gpt-4o", "input": "Hello"}'
 ```
 
 ## Configuration Hot Reload
