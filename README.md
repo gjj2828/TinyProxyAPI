@@ -16,7 +16,7 @@ TinyProxyAPI 的核心优势在于**透传**——除了必须替换的 Header �
 ## 特性
 
 - **透传** - 使用 `httputil.ReverseProxy`，Body 原封不动转发，仅替换路由必需的 Header（Host 和 Authorization），不进行任何内容检查或修改
-- **多协议** - 支持 `responses`（`/v1/responses`）、`openai`（`/v1/chat/completions`）、`anthropic`（`/v1/messages`）三种协议端点，请求按原格式透传到上游同名端点
+- **多协议** - 支持 `responses`（`/v1/responses`、`/v1/responses/input_tokens`）、`openai`（`/v1/chat/completions`）、`anthropic`（`/v1/messages`、`/v1/messages/count_tokens`）三种协议端点，请求按原格式透传到上游同名端点
 - **灵活路由** - 模型名全量匹配，通过 TOML 配置；可按协议覆盖，让同一模型在不同协议下走不同平台
 - **平台抽象** - 同一平台的多个模型共享 base_url 和 api_key
 - **热重载** - 改完 `config.toml` 保存即生效（基于 fsnotify 跨平台监听）；Linux/Mac 也可发 SIGHUP 触发
@@ -24,7 +24,7 @@ TinyProxyAPI 的核心优势在于**透传**——除了必须替换的 Header �
 - **系统托盘** - Windows 运行时隐藏控制台窗口，通过托盘图标管理程序（显示/隐藏日志窗口、打开配置文件、退出）
 - **日志窗口** - 可查看程序运行日志，支持启动时自动显示
 
-> **已支持三种协议端点**：`/v1/responses`（OpenAI Responses API，Codex 使用）、`/v1/chat/completions`（OpenAI Chat Completions API）、`/v1/messages`（Anthropic Messages API）。请求按原格式透传到上游同名端点，代理仅替换 Host 与鉴权头（Anthropic 自动使用 `x-api-key`）。
+> **已支持五种端点**：`/v1/responses`、`/v1/responses/input_tokens`（OpenAI Responses API，Codex 使用）、`/v1/chat/completions`（OpenAI Chat Completions API）、`/v1/messages`、`/v1/messages/count_tokens`（Anthropic Messages API）。请求按原格式透传到上游同名端点，代理仅替换 Host 与鉴权头（Anthropic 自动使用 `x-api-key`）。
 
 ## 快速开始
 
@@ -57,7 +57,7 @@ platform = "openai"
 ```
 
 > **协议说明**：客户端请求的端点决定协议，并按原格式透传到上游同名端点——
-> `POST /v1/responses` → `responses`、`POST /v1/chat/completions` → `openai`、`POST /v1/messages` → `anthropic`。
+> `POST /v1/responses`、`POST /v1/responses/input_tokens` → `responses`；`POST /v1/chat/completions` → `openai`；`POST /v1/messages`、`POST /v1/messages/count_tokens` → `anthropic`。
 > 路由按「(协议, 模型) → 平台」匹配：先查 `[models.<协议>]`，再查 `[models]`，最后回退 `[default].platform`。
 > 因此同名模型在不同协议下可以指向不同平台。向 Anthropic 上游转发时会自动使用 `x-api-key`（并在缺失时补默认 `anthropic-version`），不会泄露客户端凭证。
 
@@ -105,6 +105,22 @@ curl -X POST http://localhost:3178/v1/messages \
   -H "Content-Type: application/json" \
   -H "x-api-key: your-client-key" \
   -d '{"model": "claude-sonnet-4-20250514", "max_tokens": 1024, "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+**Token 计数（Anthropic Messages API）：**
+```bash
+curl -X POST http://localhost:3178/v1/messages/count_tokens \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your-client-key" \
+  -d '{"model": "claude-sonnet-4-20250514", "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+**Token 计数（OpenAI Responses API）：**
+```bash
+curl -X POST http://localhost:3178/v1/responses/input_tokens \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-client-key" \
+  -d '{"model": "gpt-4o", "input": "Hello"}'
 ```
 
 ## 配置热重载
