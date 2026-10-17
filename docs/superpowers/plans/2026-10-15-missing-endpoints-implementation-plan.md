@@ -19,6 +19,11 @@
 - **凭证不泄露**：Director 先 `Del` 客户端的 `Authorization` 与 `x-api-key`，再写平台 key；客户端已带 `anthropic-version` 时**不得**覆盖，仅在缺失时补默认值 `2023-06-01`。
 - **向后兼容**：现有三个端点 `/v1/responses`、`/v1/chat/completions`、`/v1/messages` 的行为逐条不变。
 - **明确不做**（spec 第 95-103 行范围外）：`/v1/messages/batches`、`/v1/batches`、`/v1/completions`、`/v1/embeddings`、`/v1/images/*`、`/v1/responses/{response_id}`、`/v1/audio/*`、`/v1/files`、`/v1/fine_tuning/*`。
+- **本机沙盒下跑 Go 命令前必须重定向缓存**，否则会被 ACL 拒绝：
+  ```powershell
+  $env:GOCACHE="$env:TEMP\tpa-gocache"; $env:GOMODCACHE="$env:TEMP\tpa-gomodcache"
+  ```
+  基线（改动前）`go test ./...` 已确认 7 个包全绿，可作为回归对照。
 - **已知并接受的 spec 偏差**：spec 第 39 行写「缺 `model` → 400」，但现有 `ServeHTTP` 对 `model` 为空的合法 JSON 会走 `matcher.Match(protocol, "")` → 返回 404 `model not configured`（若配了 `[default].platform` 则透传给 default 平台）。本计划**保持现状、不新增校验**，以免与「现有三个端点行为不变」冲突。Task 1 用测试把实际行为钉死。
 
 ## Review Focus
